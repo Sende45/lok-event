@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENT
+  PRESTATAIRE
+  ADMIN
+}
+
+enum StatutReservation {
+  EN_ATTENTE
+  CONFIRMEE
+  ANNULEE
+  TERMINEE
+}
+
+model User {
+  id           String        @id @default(cuid())
+  nom          String
+  prenom       String
+  email        String        @unique
+  motDePasse   String
+  telephone    String?
+  role         Role          @default(CLIENT)
+  avatar       String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  prestataire  Prestataire?
+  reservations Reservation[]
+  avis         Avis[]
+  favoris      Favori[]
+
+  @@map("users")
+}
+
+model Categorie {
+  id           String        @id @default(cuid())
+  nom          String        @unique
+  slug         String        @unique
+  description  String?
+  icone        String?
+  couleur      String?
+  createdAt    DateTime      @default(now())
+  prestataires Prestataire[]
+
+  @@map("categories")
+}
+
+model Tag {
+  id           String        @id @default(cuid())
+  nom          String
+  slug         String        @unique
+  groupe       String
+  icone        String?
+  createdAt    DateTime      @default(now())
+  prestataires Prestataire[] @relation("PrestataireTags")
+
+  @@map("tags")
+}
+
+model Prestataire {
+  id            String        @id @default(cuid())
+  userId        String        @unique
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categorieId   String
+  categorie     Categorie     @relation(fields: [categorieId], references: [id])
+  nomEntreprise String
+  description   String?
+  quartier      String
+  ville         String        @default("Abidjan")
+  telephone     String?
+  whatsapp      String?
+  email         String?
+  siteWeb       String?
+  photos        String[]
+  prixMin       Float?
+  prixMax       Float?
+  notemoyenne   Float         @default(0)
+  totalAvis     Int           @default(0)
+  verifie       Boolean       @default(false)
+  actif         Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  reservations  Reservation[]
+  avis          Avis[]
+  tags          Tag[]         @relation("PrestataireTags")
+  favoris       Favori[]
+
+  @@map("prestataires")
+}
+
+model Reservation {
+  id              String            @id @default(cuid())
+  clientId        String
+  client          User              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  prestataireId   String
+  prestataire     Prestataire       @relation(fields: [prestataireId], references: [id], onDelete: Cascade)
+  dateEvenement   DateTime
+  lieuEvenement   String
+  typeEvenement   String
+  nombrePersonnes Int?
+  message         String?
+  budget          Float?
+  statut          StatutReservation @default(EN_ATTENTE)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  avis            Avis?
+
+  @@map("reservations")
+}
+
+model Avis {
+  id            String       @id @default(cuid())
+  auteurId      String
+  auteur        User         @relation(fields: [auteurId], references: [id], onDelete: Cascade)
+  prestataireId String
+  prestataire   Prestataire  @relation(fields: [prestataireId], references: [id], onDelete: Cascade)
+  reservationId String?      @unique
+  reservation   Reservation? @relation(fields: [reservationId], references: [id])
+  note          Int
+  commentaire   String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("avis")
+}
+
+model Favori {
+  id            String      @id @default(cuid())
+  clientId      String
+  client        User        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  prestataireId String
+  prestataire   Prestataire @relation(fields: [prestataireId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@unique([clientId, prestataireId])
+  @@map("favoris")
+}

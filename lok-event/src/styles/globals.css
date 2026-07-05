@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme {
+  /* Palette Premium Sombre */
+  --color-primary: #00f5d4;
+  --color-primary-rgb: 0, 245, 212;
+  --color-background: #050505;
+  --color-surface: #0a0a0a;
+  --color-on-surface: #ffffff;
+  
+  /* Typographie */
+  --font-display: 'Montserrat', sans-serif;
+  --font-sans: 'Inter', sans-serif;
+
+  /* Dégradé de luxe */
+  --background-gradient: radial-gradient(circle at 80% -20%, #0c2a4d, #050505, #000000);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-on-surface);
+    font-family: var(--font-sans);
+    margin: 0;
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Classe dédiée pour le fond fixe */
+  .global-bg {
+    background: var(--background-gradient);
+    background-attachment: fixed;
+    position: fixed;
+    inset: 0;
+    z-index: -1; /* Place le fond derrière tout le reste */
+    pointer-events: none; /* Empêche le fond de bloquer les clics */
+  }
+
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    box-sizing: border-box;
+  }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--color-background); }
+  ::-webkit-scrollbar-thumb { background: #1f1f1f; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-primary); }
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html.light {
+  background-color: #ffffff;
+}
+
+html.light .bg-\[\#0a0a0a\],
+html.light .bg-black\/40,
+html.light .bg-black\/50,
+html.light .bg-black\/60,
+html.light .bg-black\/70,
+html.light .bg-black\/80,
+html.light .bg-black\/95 {
+  background-color: #ffffff !important;
+}
+
+html.light .text-white {
+  color: #111827 !important;
+}
+
+html.light .text-gray-300,
+html.light .text-gray-400 {
+  color: #4b5563 !important;
+}
+
+html.light .text-gray-500,
+html.light .text-gray-600 {
+  color: #6b7280 !important;
+}
+
+html.light .border-white\/5,
+html.light .border-white\/10,
+html.light .border-white\/20 {
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+html.light .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+html.light .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+html.light .hover\:bg-white\/5:hover,
+html.light .hover\:bg-white\/10:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light .hover\:text-white:hover {
+  color: #111827 !important;
+}
