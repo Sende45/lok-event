@@ -19,9 +19,25 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
 ].filter(Boolean) as string[];
 
+// Autorise en plus toute URL de preview Vercel du même projet
+// (ex: lok-event-git-feature-xyz-tonequipe.vercel.app),
+// en plus des origines fixes ci-dessus.
+const vercelPreviewPattern = /^https:\/\/lok-event-[a-z0-9-]+\.vercel\.app$/;
+
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin) {
+        // Requêtes sans origine (ex: Postman, curl, apps mobiles) — autorisées
+        callback(null, true);
+        return;
+      }
+      if (allowedOrigins.includes(origin) || vercelPreviewPattern.test(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error("Non autorisé par la politique CORS"));
+    },
     credentials: true,
   })
 );
