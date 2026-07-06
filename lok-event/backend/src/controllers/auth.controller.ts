@@ -6,9 +6,18 @@ import { prisma } from "../lib/prisma";
 const generateToken = (id: string, role: string) =>
   jwt.sign({ id, role }, process.env.JWT_SECRET!, { expiresIn: "7d" });
 
+// Seuls ces rôles peuvent être choisis via l'inscription publique.
+// ADMIN ne peut JAMAIS être créé par cette route — uniquement via le script de seed.
+const ROLES_AUTORISES_A_INSCRIPTION = ["CLIENT", "PRESTATAIRE"];
+
 export const register = async (req: Request, res: Response) => {
   try {
     const { nom, prenom, email, motDePasse, telephone, role } = req.body;
+
+    // On ignore toute valeur de "role" qui ne serait pas explicitement autorisée.
+    // Si le champ est absent, invalide, ou vaut "ADMIN", on retombe sur CLIENT.
+    const roleFinal = ROLES_AUTORISES_A_INSCRIPTION.includes(role) ? role : "CLIENT";
+
     const existe = await prisma.user.findUnique({ where: { email } });
     if (existe) {
       res.status(400).json({ message: "Email déjà utilisé" });
@@ -16,7 +25,7 @@ export const register = async (req: Request, res: Response) => {
     }
     const hash = await bcrypt.hash(motDePasse, 12);
     const user = await prisma.user.create({
-      data: { nom, prenom, email, motDePasse: hash, telephone, role: role || "CLIENT" },
+      data: { nom, prenom, email, motDePasse: hash, telephone, role: roleFinal },
     });
     res.status(201).json({
       token: generateToken(user.id, user.role),

@@ -1,17 +1,23 @@
+import { api } from "./api";
+
 export async function uploadToImgbb(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("image", file);
 
-  const res = await fetch(
-    `https://api.imgbb.com/1/upload?key=${process.env.NEXT_PUBLIC_IMGBB_API_KEY}`,
-    { method: "POST", body: formData }
-  );
+  const token = localStorage.getItem("lokevent_token");
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+  const res = await fetch(`${API_URL}/prestataires/photos/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
 
   const data = await res.json();
 
-  if (!data.success) {
-    throw new Error("Échec de l'upload de l'image");
+  if (!res.ok) {
+    throw new Error(data.message || "Échec de l'upload de l'image");
   }
 
-  return data.data.url as string;
+  return data.url as string;
 }

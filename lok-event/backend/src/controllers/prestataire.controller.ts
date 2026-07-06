@@ -1,5 +1,7 @@
 // backend/src/controllers/prestataire.controller.ts
 import { Request, Response } from "express";
+import multer from "multer";
+import FormData from "form-data";
 import { prisma } from "../lib/prisma";
 
 interface AuthRequest extends Request {
@@ -103,6 +105,57 @@ export const removePrestatairePhoto = async (req: AuthRequest, res: Response) =>
     res.json(updated);
   } catch (error) {
     console.error("Erreur suppression photo:", error);
+    res.status(500).json({ message: "Erreur serveur", error });
+  }
+};
+
+// ============ UPLOAD SÉCURISÉ VERS IMGBB (clé jamais exposée au client) ============
+export const uploadMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 Mo max
+  fileFilter: (_req, file, cb) => {
+    const typesAutorises = ["image/jpeg", "image/png", "image/webp"];
+    if (!typesAutorises.includes(file.mimetype)) {
+      cb(new Error("Format d'image non autorisé (JPEG, PNG ou WebP uniquement)"));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+interface ImgbbResponse {
+  success: boolean;
+  data?: { url: string };
+}
+
+export const uploadPhotoToImgbb = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ message: "Aucun fichier envoyé" });
+      return;
+    }
+
+    const params = new URLSearchParams();
+    params.append("key", process.env.IMGBB_API_KEY!);
+    params.append("image", req.file.buffer.toString("base64"));
+
+    const imgbbRes = await fetch("https://api.imgbb.com/1/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params,
+    });
+
+    const data = (await imgbbRes.json()) as ImgbbResponse;
+
+    if (!data.success || !data.data) {
+      console.error("Réponse Imgbb en échec:", JSON.stringify(data));
+      res.status(502).json({ message: "Échec de l'upload vers Imgbb" });
+      return;
+    }
+
+    res.json({ url: data.data.url });
+  } catch (error) {
+    console.error("Erreur upload photo:", error);
     res.status(500).json({ message: "Erreur serveur", error });
   }
 };

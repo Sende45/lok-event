@@ -38,14 +38,29 @@ export const getMesReservations = async (req: any, res: Response) => {
 
 export const updateStatutReservation = async (req: any, res: Response) => {
   try {
+    const reservationId = req.params.id as string;
     const { statut } = req.body;
-    const reservation = await prisma.reservation.findUnique({ where: { id: req.params.id } });
+
+    const reservation = await prisma.reservation.findUnique({
+      where: { id: reservationId },
+      include: { prestataire: { select: { userId: true } } },
+    });
+
     if (!reservation) {
       res.status(404).json({ message: "Réservation non trouvée" });
       return;
     }
+
+    // Seul le prestataire propriétaire de cette réservation peut en changer le statut.
+    // Le client qui a fait la demande ne peut pas s'auto-confirmer, et un tiers non plus.
+    const estLePrestataireConcerne = reservation.prestataire.userId === req.user.id;
+    if (!estLePrestataireConcerne) {
+      res.status(403).json({ message: "Non autorisé à modifier cette réservation" });
+      return;
+    }
+
     const updated = await prisma.reservation.update({
-      where: { id: req.params.id },
+      where: { id: reservationId },
       data: { statut },
     });
     res.json(updated);
