@@ -13,6 +13,7 @@ import {
   getPrestataireReviews,
   getPrestataireAnalytics,
   getPrestatairesPublic,
+  getPrestatairesProximite,
   getPrestatairePublic,
 } from "../controllers/prestataire.controller";
 import { protect } from "../middlewares/auth.middleware";
@@ -36,6 +37,8 @@ router.get("/analytics", protect, requireProvider, getPrestataireAnalytics);
 router.post("/photos/upload", protect, requireProvider, uploadMiddleware.single("image"), uploadPhotoToImgbb);
 
 // Routes publiques (doivent être déclarées après les routes protégées ci-dessus)
+// ⚠️ /proximite DOIT être avant /:id, sinon "proximite" serait interprété comme un id
+router.get("/proximite", getPrestatairesProximite);
 router.get("/", getPrestatairesPublic);
 router.get("/:id", getPrestatairePublic);
 

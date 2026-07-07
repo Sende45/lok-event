@@ -3,8 +3,18 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
 import { Sparkles, Building2, MapPin, Phone, FileText, DollarSign, AlertCircle, ArrowRight } from "lucide-react";
 import { api } from "@/lib/api";
+
+// ⚠️ Leaflet ne fonctionne pas en SSR : import dynamique obligatoire
+// Adapte le chemin selon l'emplacement de ce fichier par rapport à components/map/
+const LocationPicker = dynamic(() => import("@/components/map/LocationPicker"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[300px] rounded-xl bg-white/5 animate-pulse" />
+  ),
+});
 
 interface Categorie {
   id: string;
@@ -24,12 +34,17 @@ export default function ProviderSetup() {
     nomEntreprise: "",
     description: "",
     quartier: "",
+    commune: "",
     ville: "Abidjan",
     telephone: "",
     whatsapp: "",
     prixMin: "",
     prixMax: "",
   });
+  const [position, setPosition] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
   useEffect(() => {
     async function loadCategories() {
@@ -58,7 +73,11 @@ export default function ProviderSetup() {
     setError("");
 
     try {
-      await api.post("/prestataires/profile", formData);
+      await api.post("/prestataires/profile", {
+        ...formData,
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+      });
       router.push("/provider");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue");
@@ -177,7 +196,7 @@ export default function ProviderSetup() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm text-gray-400 mb-1.5">Quartier</label>
                 <div className="relative">
@@ -187,11 +206,23 @@ export default function ProviderSetup() {
                     name="quartier"
                     value={formData.quartier}
                     onChange={handleChange}
-                    placeholder="Cocody"
+                    placeholder="Riviera"
                     className="w-full pl-10 pr-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
                     required
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-1.5">Commune</label>
+                <input
+                  type="text"
+                  name="commune"
+                  value={formData.commune}
+                  onChange={handleChange}
+                  placeholder="Cocody"
+                  className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
+                />
               </div>
 
               <div>
@@ -204,6 +235,20 @@ export default function ProviderSetup() {
                   className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-400 mb-1.5">
+                Position sur la carte <span className="text-gray-600">— recommandé</span>
+              </label>
+              <p className="text-xs text-gray-600 mb-2">
+                Placez votre position exacte pour apparaître sur la carte LOKEVENT et dans les recherches "autour de moi".
+              </p>
+              <LocationPicker
+                initialPosition={null}
+                onChange={setPosition}
+                height="300px"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { SlidersHorizontal, Sparkles, X, ChevronDown } from "lucide-react";
+import { SlidersHorizontal, Sparkles, X, ChevronDown, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
@@ -23,12 +23,15 @@ interface Tag {
 
 type TagsGrouped = Record<string, Tag[]>;
 
+interface FilterSelection {
+  categorieSlug?: string;
+  tagSlug?: string;
+  ville?: string;
+  commune?: string;
+}
+
 interface FiltersProps {
-  onFilterChange?: (filters: {
-    categorieSlug?: string;
-    tagSlug?: string;
-    ville?: string;
-  }) => void;
+  onFilterChange?: (filters: FilterSelection) => void;
 }
 
 const groupLabels: Record<string, string> = {
@@ -37,12 +40,30 @@ const groupLabels: Record<string, string> = {
   EVENEMENTIEL: "Événementiel",
 };
 
+const villes = ["Abidjan", "Bouaké", "Daloa", "Yamoussoukro", "San-Pédro", "Korhogo"];
+
+const communesAbidjan = [
+  "Cocody",
+  "Yopougon",
+  "Marcory",
+  "Treichville",
+  "Plateau",
+  "Adjamé",
+  "Abobo",
+  "Koumassi",
+  "Port-Bouët",
+  "Attécoubé",
+  "Bingerville",
+  "Anyama",
+];
+
 export default function Filters({ onFilterChange }: FiltersProps) {
   const [categories, setCategories] = useState<Categorie[]>([]);
   const [tagsGrouped, setTagsGrouped] = useState<TagsGrouped>({});
   const [isLoading, setIsLoading] = useState(true);
 
   const [activeFilter, setActiveFilter] = useState<string>("Tout");
+  const [selection, setSelection] = useState<FilterSelection>({});
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -69,16 +90,55 @@ export default function Filters({ onFilterChange }: FiltersProps) {
     0
   );
 
+  // Applique une sélection fusionnée (les filtres se cumulent au lieu de s'écraser)
+  const applySelection = (next: FilterSelection) => {
+    setSelection(next);
+    onFilterChange?.(next);
+  };
+
   const handleSelectCategory = (slug: string | null, label: string) => {
     setActiveFilter(label);
-    onFilterChange?.({ categorieSlug: slug ?? undefined });
+    // Choisir une catégorie remplace catégorie ET tag, mais garde la localisation
+    applySelection({
+      ...selection,
+      categorieSlug: slug ?? undefined,
+      tagSlug: undefined,
+    });
   };
 
   const handleSelectTag = (slug: string, label: string) => {
     setActiveFilter(label);
-    onFilterChange?.({ tagSlug: slug });
+    // Un tag remplace la catégorie, mais garde la localisation
+    applySelection({ ...selection, tagSlug: slug, categorieSlug: undefined });
     setIsFilterModalOpen(false);
   };
+
+  const handleSelectVille = (city: string) => {
+    if (selection.ville === city) {
+      // Re-cliquer désélectionne la ville (et la commune avec)
+      applySelection({ ...selection, ville: undefined, commune: undefined });
+    } else {
+      // Changer de ville réinitialise la commune
+      applySelection({ ...selection, ville: city, commune: undefined });
+    }
+  };
+
+  const handleSelectCommune = (commune: string) => {
+    if (selection.commune === commune) {
+      applySelection({ ...selection, commune: undefined });
+    } else {
+      // Sélectionner une commune force ville = Abidjan
+      applySelection({ ...selection, ville: "Abidjan", commune });
+    }
+  };
+
+  const handleResetLocalisation = () => {
+    applySelection({ ...selection, ville: undefined, commune: undefined });
+  };
+
+  const localisationLabel = selection.commune
+    ? `${selection.commune}, Abidjan`
+    : selection.ville || null;
 
   if (isLoading) {
     return (
@@ -181,6 +241,20 @@ export default function Filters({ onFilterChange }: FiltersProps) {
           </div>
 
           <div className="flex items-center justify-between md:justify-end gap-3 md:ml-auto flex-shrink-0">
+            {localisationLabel && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                onClick={handleResetLocalisation}
+                className="flex items-center gap-1.5 px-3 py-2 bg-teal-400/10 border border-teal-400/30 rounded-full text-teal-400 text-xs font-medium hover:bg-teal-400/20 transition-all"
+                title="Cliquer pour retirer le filtre de localisation"
+              >
+                <MapPin className="w-3 h-3" />
+                {localisationLabel}
+                <X className="w-3 h-3" />
+              </motion.button>
+            )}
+
             <motion.button
               className="relative flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-gray-400 hover:border-teal-400/50 hover:text-teal-400 transition-all duration-300"
               whileHover={{
@@ -283,28 +357,70 @@ export default function Filters({ onFilterChange }: FiltersProps) {
                 ))}
 
                 <div>
-                  <label className="text-xs text-gray-400 uppercase tracking-wider block mb-3">
-                    Localisation
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {["Abidjan", "Bouaké", "Daloa", "Yamoussoukro", "San-Pédro", "Korhogo"].map(
-                      (city) => (
-                        <motion.button
-                          key={city}
-                          className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-400 hover:border-teal-400/50 hover:text-white transition-all"
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => {
-                            onFilterChange?.({ ville: city });
-                            setIsFilterModalOpen(false);
-                          }}
-                        >
-                          📍 {city}
-                        </motion.button>
-                      )
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-xs text-gray-400 uppercase tracking-wider">
+                      Ville
+                    </label>
+                    {(selection.ville || selection.commune) && (
+                      <button
+                        onClick={handleResetLocalisation}
+                        className="text-xs text-teal-400 hover:text-teal-300 transition-colors"
+                      >
+                        Réinitialiser la localisation
+                      </button>
                     )}
                   </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {villes.map((city) => (
+                      <motion.button
+                        key={city}
+                        className={`px-4 py-2 border rounded-lg text-sm transition-all ${
+                          selection.ville === city
+                            ? "bg-teal-400/20 border-teal-400 text-teal-400 font-medium"
+                            : "bg-white/5 border-white/10 text-gray-400 hover:border-teal-400/50 hover:text-white"
+                        }`}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleSelectVille(city)}
+                      >
+                        📍 {city}
+                      </motion.button>
+                    ))}
+                  </div>
                 </div>
+
+                <AnimatePresence>
+                  {(!selection.ville || selection.ville === "Abidjan") && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="overflow-hidden"
+                    >
+                      <label className="text-xs text-gray-400 uppercase tracking-wider block mb-3">
+                        Commune d'Abidjan
+                      </label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {communesAbidjan.map((commune) => (
+                          <motion.button
+                            key={commune}
+                            className={`px-4 py-2 border rounded-lg text-sm transition-all ${
+                              selection.commune === commune
+                                ? "bg-teal-400/20 border-teal-400 text-teal-400 font-medium"
+                                : "bg-white/5 border-white/10 text-gray-400 hover:border-teal-400/50 hover:text-white"
+                            }`}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => handleSelectCommune(commune)}
+                          >
+                            {commune}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <motion.button
                   className="w-full py-3 bg-gradient-to-r from-teal-400 to-teal-500 text-black font-bold rounded-full mt-4"
@@ -312,7 +428,7 @@ export default function Filters({ onFilterChange }: FiltersProps) {
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setIsFilterModalOpen(false)}
                 >
-                  Fermer
+                  Appliquer
                 </motion.button>
               </div>
             </motion.div>

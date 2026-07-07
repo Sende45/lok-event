@@ -6,6 +6,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Star, MessageCircle, ArrowLeft, Heart, CheckCircle, Calendar, X, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/lib/api";
+import dynamic from "next/dynamic";
+
+// ⚠️ Leaflet ne fonctionne pas en SSR : import dynamique obligatoire
+const ProviderMiniMap = dynamic(() => import("@/components/map/ProviderMiniMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[380px] rounded-2xl bg-white/5 animate-pulse" />
+  ),
+});
 
 interface Avis {
   id: string;
@@ -20,7 +29,10 @@ interface PrestataireDetail {
   nomEntreprise: string;
   description: string | null;
   quartier: string;
+  commune: string | null;
   ville: string;
+  latitude: number | null;
+  longitude: number | null;
   telephone: string | null;
   whatsapp: string | null;
   photos: string[];
@@ -29,7 +41,7 @@ interface PrestataireDetail {
   notemoyenne: number;
   totalAvis: number;
   verifie: boolean;
-  categorie: { nom: string };
+  categorie: { nom: string; couleur?: string | null };
   avis: Avis[];
   _count: { avis: number; reservations: number };
 }
@@ -240,7 +252,8 @@ export default function PrestataireDetailPage() {
                 <span>{prestataire.categorie.nom}</span>
                 <span className="flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5 text-teal-400" />
-                  {prestataire.quartier}, {prestataire.ville}
+                  {prestataire.quartier}
+                  {prestataire.commune ? `, ${prestataire.commune}` : ""}, {prestataire.ville}
                 </span>
                 <span className="flex items-center gap-1">
                   <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
@@ -295,6 +308,18 @@ export default function PrestataireDetailPage() {
               <p className="text-gray-400 leading-relaxed">{prestataire.description}</p>
             </div>
           )}
+
+          <div className="mb-8">
+            <ProviderMiniMap
+              latitude={prestataire.latitude}
+              longitude={prestataire.longitude}
+              nomEntreprise={prestataire.nomEntreprise}
+              quartier={prestataire.quartier}
+              commune={prestataire.commune}
+              ville={prestataire.ville}
+              couleur={prestataire.categorie?.couleur}
+            />
+          </div>
 
           <div>
             <h2 className="text-lg font-bold mb-4">

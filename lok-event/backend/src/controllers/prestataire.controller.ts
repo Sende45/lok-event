@@ -12,6 +12,74 @@ interface AuthRequest extends Request {
   };
 }
 
+// ============ HELPERS GÉOLOCALISATION ============
+function parseCoordinate(value: unknown, type: "lat" | "lng"): number | null {
+  if (value === undefined || value === null || value === "") return null;
+  const num = typeof value === "number" ? value : parseFloat(value as string);
+  if (isNaN(num)) return null;
+  if (type === "lat" && (num < -90 || num > 90)) return null;
+  if (type === "lng" && (num < -180 || num > 180)) return null;
+  return num;
+}
+
+// Normalise pour comparaison : minuscules + sans accents
+function normalizeStr(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+// Connaissance locale : quartiers d'Abidjan → commune.
+// Chercher un quartier remonte aussi tous les prestataires de sa commune.
+// Clés en minuscules SANS accents. Liste extensible librement.
+const QUARTIERS_COMMUNES: Record<string, string> = {
+  // Cocody
+  blockhaus: "Cocody",
+  riviera: "Cocody",
+  angre: "Cocody",
+  plateaux: "Cocody", // Deux-Plateaux ("plateau" singulier = la commune du Plateau)
+  danga: "Cocody",
+  ambassades: "Cocody",
+  vallon: "Cocody",
+  palmeraie: "Cocody",
+  mpouto: "Cocody",
+  bonoumin: "Cocody",
+  // Yopougon
+  niangon: "Yopougon",
+  sideci: "Yopougon",
+  selmer: "Yopougon",
+  maroc: "Yopougon",
+  koweit: "Yopougon",
+  micao: "Yopougon",
+  // Marcory
+  bietry: "Marcory",
+  anoumabo: "Marcory",
+  remblais: "Marcory",
+  // Treichville
+  arras: "Treichville",
+  // Adjamé
+  williamsville: "Adjamé",
+  // Abobo
+  avocatier: "Abobo",
+  dokui: "Abobo",
+  // Port-Bouët
+  vridi: "Port-Bouët",
+  gonzagueville: "Port-Bouët",
+  // Koumassi
+  prodomo: "Koumassi",
+};
+
+// "zone 4" (Marcory) et "zone 3" (Treichville) : quartiers en deux mots,
+// détectés sur la phrase complète avant découpage
+const QUARTIERS_MULTIMOTS: { motif: RegExp; commune: string }[] = [
+  { motif: /zone\s*4/i, commune: "Marcory" },
+  { motif: /zone\s*3/i, commune: "Treichville" },
+  { motif: /deux[\s-]*plateaux/i, commune: "Cocody" },
+  { motif: /toits[\s-]*rouges/i, commune: "Yopougon" },
+];
+
 // ============ CRÉATION DU PROFIL ============
 export const createPrestataireProfile = async (req: AuthRequest, res: Response) => {
   try {
@@ -21,7 +89,10 @@ export const createPrestataireProfile = async (req: AuthRequest, res: Response) 
       nomEntreprise,
       description,
       quartier,
+      commune,
       ville,
+      latitude,
+      longitude,
       telephone,
       whatsapp,
       prixMin,
@@ -34,6 +105,9 @@ export const createPrestataireProfile = async (req: AuthRequest, res: Response) 
       return;
     }
 
+    const lat = parseCoordinate(latitude, "lat");
+    const lng = parseCoordinate(longitude, "lng");
+
     const prestataire = await prisma.prestataire.create({
       data: {
         userId: userId!,
@@ -41,7 +115,10 @@ export const createPrestataireProfile = async (req: AuthRequest, res: Response) 
         nomEntreprise,
         description,
         quartier,
+        commune: commune || undefined,
         ville: ville || "Abidjan",
+        latitude: lat ?? undefined,
+        longitude: lng ?? undefined,
         telephone,
         whatsapp,
         prixMin: prixMin ? parseFloat(prixMin) : undefined,
@@ -360,6 +437,10 @@ export const updatePrestataireProfile = async (req: AuthRequest, res: Response) 
       nomEntreprise,
       description,
       quartier,
+      commune,
+      ville,
+      latitude,
+      longitude,
       telephone,
       whatsapp,
       prixMin,
@@ -378,12 +459,19 @@ export const updatePrestataireProfile = async (req: AuthRequest, res: Response) 
       return;
     }
 
+    const lat = parseCoordinate(latitude, "lat");
+    const lng = parseCoordinate(longitude, "lng");
+
     const updatedPrestataire = await prisma.prestataire.update({
       where: { id: prestataire.id },
       data: {
         nomEntreprise: nomEntreprise || undefined,
         description: description || undefined,
         quartier: quartier || undefined,
+        commune: commune || undefined,
+        ville: ville || undefined,
+        latitude: lat ?? undefined,
+        longitude: lng ?? undefined,
         telephone: telephone || undefined,
         whatsapp: whatsapp || undefined,
         prixMin: prixMin ? parseFloat(prixMin) : undefined,
@@ -682,47 +770,106 @@ async function getPeakHours(prestataireId: string) {
 // ============ ROUTES PUBLIQUES ============
 export const getPrestatairesPublic = async (req: Request, res: Response) => {
   try {
-    const { categorie, tag, quartier, ville, search, page = "1", limit = "12" } = req.query;
+    const {
+      categorie,
+      tag,
+      quartier,
+      commune,
+      ville,
+      search,
+      page = "1",
+      limit = "12",
+    } = req.query;
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
     const take = parseInt(limit as string);
 
     let ids: string[] | null = null;
 
     if (search) {
-      const term = search as string;
-      const matches = await prisma.$queryRaw<{ id: string }[]>`
-        SELECT id FROM prestataires
-        WHERE actif = true AND (
-          unaccent(lower("nomEntreprise")) LIKE unaccent(lower(${"%" + term + "%"})) OR
-          unaccent(lower(COALESCE(description, ''))) LIKE unaccent(lower(${"%" + term + "%"})) OR
-          unaccent(lower(quartier)) LIKE unaccent(lower(${"%" + term + "%"})) OR
-          unaccent(lower(ville)) LIKE unaccent(lower(${"%" + term + "%"}))
-        )
-      `;
-      ids = matches.map((m) => m.id);
+      // Recherche multi-mots : chaque mot doit matcher au moins un champ
+      // (nom, description, quartier, commune, ville, catégorie ou tag).
+      // Ex: "décoration cocody" => "décoration" matche la catégorie,
+      // "cocody" matche la commune => intersection = décorateurs de Cocody
+      const searchStr = search as string;
 
-      const categoriesMatch = await prisma.categorie.findMany({
-        where: { nom: { contains: term, mode: "insensitive" } },
-        select: { id: true },
-      });
-      if (categoriesMatch.length > 0) {
-        const prestatairesByCat = await prisma.prestataire.findMany({
-          where: { categorieId: { in: categoriesMatch.map((c) => c.id) } },
-          select: { id: true },
-        });
-        ids = [...new Set([...ids, ...prestatairesByCat.map((p) => p.id)])];
+      // Quartiers en plusieurs mots ("zone 4", "deux plateaux") : on détecte
+      // sur la phrase entière, on retire le motif et on garde la commune
+      let resteRecherche = searchStr;
+      const communesDetectees: string[] = [];
+      for (const { motif, commune } of QUARTIERS_MULTIMOTS) {
+        if (motif.test(resteRecherche)) {
+          communesDetectees.push(commune);
+          resteRecherche = resteRecherche.replace(motif, " ");
+        }
       }
 
-      const tagsMatch = await prisma.tag.findMany({
-        where: { nom: { contains: term, mode: "insensitive" } },
-        select: { id: true },
-      });
-      if (tagsMatch.length > 0) {
-        const prestatairesByTag = await prisma.prestataire.findMany({
-          where: { tags: { some: { id: { in: tagsMatch.map((t) => t.id) } } } },
+      const words = resteRecherche
+        .trim()
+        .split(/\s+/)
+        .filter((w) => w.length >= 2);
+
+      for (const word of words) {
+        const pattern = "%" + word + "%";
+
+        const matches = await prisma.$queryRaw<{ id: string }[]>`
+          SELECT p.id FROM prestataires p
+          LEFT JOIN categories c ON c.id = p."categorieId"
+          WHERE p.actif = true AND (
+            unaccent(lower(p."nomEntreprise")) LIKE unaccent(lower(${pattern})) OR
+            unaccent(lower(COALESCE(p.description, ''))) LIKE unaccent(lower(${pattern})) OR
+            unaccent(lower(p.quartier)) LIKE unaccent(lower(${pattern})) OR
+            unaccent(lower(COALESCE(p.commune, ''))) LIKE unaccent(lower(${pattern})) OR
+            unaccent(lower(p.ville)) LIKE unaccent(lower(${pattern})) OR
+            unaccent(lower(c.nom)) LIKE unaccent(lower(${pattern}))
+          )
+        `;
+        const wordIds = new Set(matches.map((m) => m.id));
+
+        const tagsMatch = await prisma.tag.findMany({
+          where: { nom: { contains: word, mode: "insensitive" } },
           select: { id: true },
         });
-        ids = [...new Set([...ids, ...prestatairesByTag.map((p) => p.id)])];
+        if (tagsMatch.length > 0) {
+          const prestatairesByTag = await prisma.prestataire.findMany({
+            where: { tags: { some: { id: { in: tagsMatch.map((t) => t.id) } } } },
+            select: { id: true },
+          });
+          prestatairesByTag.forEach((p) => wordIds.add(p.id));
+        }
+
+        // Connaissance locale : si le mot est un quartier connu d'Abidjan,
+        // on élargit à toute sa commune (ex: "blockhaus" => tout Cocody)
+        const communeDuQuartier = QUARTIERS_COMMUNES[normalizeStr(word)];
+        if (communeDuQuartier) {
+          const byCommune = await prisma.prestataire.findMany({
+            where: {
+              actif: true,
+              commune: { equals: communeDuQuartier, mode: "insensitive" },
+            },
+            select: { id: true },
+          });
+          byCommune.forEach((p) => wordIds.add(p.id));
+        }
+
+        // Intersection : le prestataire doit matcher TOUS les mots
+        ids = ids === null ? [...wordIds] : ids.filter((id) => wordIds.has(id));
+        if (ids.length === 0) break;
+      }
+
+      // Quartiers multi-mots détectés : intersection avec leur commune
+      for (const commune of communesDetectees) {
+        const byCommune = await prisma.prestataire.findMany({
+          where: {
+            actif: true,
+            OR: [
+              { commune: { equals: commune, mode: "insensitive" } },
+              { quartier: { contains: commune, mode: "insensitive" } },
+            ],
+          },
+          select: { id: true },
+        });
+        const communeIds = new Set(byCommune.map((p) => p.id));
+        ids = ids === null ? [...communeIds] : ids.filter((id) => communeIds.has(id));
       }
     }
 
@@ -730,6 +877,7 @@ export const getPrestatairesPublic = async (req: Request, res: Response) => {
     if (categorie) where.categorie = { slug: categorie };
     if (tag) where.tags = { some: { slug: tag } };
     if (quartier) where.quartier = { contains: quartier as string, mode: "insensitive" };
+    if (commune) where.commune = { contains: commune as string, mode: "insensitive" };
     if (ville) where.ville = { contains: ville as string, mode: "insensitive" };
     if (ids !== null) where.id = { in: ids };
 
@@ -759,6 +907,90 @@ export const getPrestatairesPublic = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Erreur get prestataires:", error);
+    res.status(500).json({ message: "Erreur serveur", error });
+  }
+};
+
+// ============ RECHERCHE PAR PROXIMITÉ (Haversine) ============
+export const getPrestatairesProximite = async (req: Request, res: Response) => {
+  try {
+    const { lat, lng, rayon = "10", categorie, limit = "50" } = req.query;
+
+    const latitude = parseCoordinate(lat, "lat");
+    const longitude = parseCoordinate(lng, "lng");
+
+    if (latitude === null || longitude === null) {
+      res.status(400).json({
+        message: "Paramètres lat et lng requis et valides (ex: ?lat=5.3364&lng=-4.0267)",
+      });
+      return;
+    }
+
+    // Rayon en km, borné entre 0.5 et 100
+    const rayonKm = Math.min(Math.max(parseFloat(rayon as string) || 10, 0.5), 100);
+    const take = Math.min(parseInt(limit as string) || 50, 100);
+
+    // Bounding box pour pré-filtrer via l'index [latitude, longitude]
+    // 1° de latitude ≈ 111 km ; 1° de longitude ≈ 111 km * cos(lat)
+    const latDelta = rayonKm / 111;
+    const lngDelta = rayonKm / (111 * Math.cos((latitude * Math.PI) / 180));
+
+    // Haversine en SQL — LEAST(1, ...) protège acos() des erreurs d'arrondi flottant
+    // Sous-requête obligatoire : on ne peut pas filtrer sur un alias dans le même SELECT
+    const results = await prisma.$queryRaw<{ id: string; distance: number }[]>`
+      SELECT id, distance FROM (
+        SELECT id,
+          (6371 * acos(LEAST(1,
+            cos(radians(${latitude})) * cos(radians(latitude)) *
+            cos(radians(longitude) - radians(${longitude})) +
+            sin(radians(${latitude})) * sin(radians(latitude))
+          ))) AS distance
+        FROM prestataires
+        WHERE actif = true
+          AND latitude IS NOT NULL
+          AND longitude IS NOT NULL
+          AND latitude BETWEEN ${latitude - latDelta} AND ${latitude + latDelta}
+          AND longitude BETWEEN ${longitude - lngDelta} AND ${longitude + lngDelta}
+      ) AS sub
+      WHERE distance <= ${rayonKm}
+      ORDER BY distance ASC
+      LIMIT ${take}
+    `;
+
+    if (results.length === 0) {
+      res.json({ prestataires: [], total: 0, rayon: rayonKm });
+      return;
+    }
+
+    const distanceById = new Map(results.map((r) => [r.id, r.distance]));
+
+    const where: any = { id: { in: results.map((r) => r.id) } };
+    if (categorie) where.categorie = { slug: categorie };
+
+    const prestataires = await prisma.prestataire.findMany({
+      where,
+      include: {
+        categorie: true,
+        user: { select: { id: true, nom: true, prenom: true, avatar: true } },
+        _count: { select: { avis: true, reservations: true } },
+      },
+    });
+
+    // Réinjecter la distance et retrier (findMany ne préserve pas l'ordre)
+    const prestatairesAvecDistance = prestataires
+      .map((p) => ({
+        ...p,
+        distance: Math.round((distanceById.get(p.id) || 0) * 10) / 10, // km, 1 décimale
+      }))
+      .sort((a, b) => a.distance - b.distance);
+
+    res.json({
+      prestataires: prestatairesAvecDistance,
+      total: prestatairesAvecDistance.length,
+      rayon: rayonKm,
+    });
+  } catch (error) {
+    console.error("Erreur proximité:", error);
     res.status(500).json({ message: "Erreur serveur", error });
   }
 };

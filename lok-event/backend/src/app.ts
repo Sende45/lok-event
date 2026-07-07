@@ -1,6 +1,7 @@
 // backend/src/app.ts
 import express from "express";
 import cors from "cors";
+import { prisma } from "./lib/prisma";
 import authRoutes from "./routes/auth.routes";
 import prestataireRoutes from "./routes/prestataire.routes";
 import categorieRoutes from "./routes/categorie.routes";
@@ -13,6 +14,24 @@ import { globalLimiter } from "./middlewares/rateLimit.middleware";
 
 const app = express();
 app.set("trust proxy", 1);
+
+// Active l'extension unaccent si absente (idempotent, sans danger).
+// Garantit que la recherche insensible aux accents fonctionne,
+// y compris après un changement ou une recréation de base de données.
+async function ensureUnaccent() {
+  try {
+    await prisma.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS unaccent`);
+    console.log("Extension unaccent OK");
+  } catch (err) {
+    console.error(
+      "Impossible d'activer unaccent (réessaiera au prochain démarrage):",
+      err
+    );
+  }
+}
+if (process.env.NODE_ENV !== "test") {
+  ensureUnaccent();
+}
 
 const allowedOrigins = [
   "http://localhost:3000",

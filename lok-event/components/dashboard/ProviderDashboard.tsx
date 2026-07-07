@@ -5,14 +5,26 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { api } from "@/lib/api";
 import { uploadToImgbb } from "@/lib/imgbb";
+
+// ⚠️ Leaflet ne fonctionne pas en SSR : import dynamique obligatoire
+const LocationPicker = dynamic(() => import("@/components/map/LocationPicker"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[300px] rounded-xl bg-white/5 animate-pulse" />
+  ),
+});
 
 interface ProviderProfile {
   nomEntreprise: string;
   description: string | null;
   quartier: string;
+  commune: string | null;
   ville: string;
+  latitude: number | null;
+  longitude: number | null;
   telephone: string | null;
   whatsapp: string | null;
   prixMin: number | null;
@@ -82,12 +94,17 @@ export default function ProviderDashboard() {
     nomEntreprise: "",
     description: "",
     quartier: "",
+    commune: "",
     ville: "",
     telephone: "",
     whatsapp: "",
     prixMin: "",
     prixMax: "",
   });
+  const [editPosition, setEditPosition] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [saveError, setSaveError] = useState("");
 
@@ -153,12 +170,18 @@ export default function ProviderDashboard() {
       nomEntreprise: profile.nomEntreprise || "",
       description: profile.description || "",
       quartier: profile.quartier || "",
+      commune: profile.commune || "",
       ville: profile.ville || "",
       telephone: profile.telephone || "",
       whatsapp: profile.whatsapp || "",
       prixMin: profile.prixMin?.toString() || "",
       prixMax: profile.prixMax?.toString() || "",
     });
+    setEditPosition(
+      profile.latitude != null && profile.longitude != null
+        ? { latitude: profile.latitude, longitude: profile.longitude }
+        : null
+    );
     setSaveError("");
     setIsEditModalOpen(true);
   };
@@ -176,7 +199,11 @@ export default function ProviderDashboard() {
     setSaveError("");
 
     try {
-      await api.put("/prestataires/profile", editForm);
+      await api.put("/prestataires/profile", {
+        ...editForm,
+        latitude: editPosition?.latitude,
+        longitude: editPosition?.longitude,
+      });
       setProfile((prev) =>
         prev
           ? {
@@ -184,7 +211,10 @@ export default function ProviderDashboard() {
               nomEntreprise: editForm.nomEntreprise,
               description: editForm.description,
               quartier: editForm.quartier,
+              commune: editForm.commune || null,
               ville: editForm.ville,
+              latitude: editPosition?.latitude ?? prev.latitude,
+              longitude: editPosition?.longitude ?? prev.longitude,
               telephone: editForm.telephone,
               whatsapp: editForm.whatsapp,
               prixMin: editForm.prixMin ? parseFloat(editForm.prixMin) : null,
@@ -289,7 +319,15 @@ export default function ProviderDashboard() {
                 </div>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mt-1">
                   <span>{profile.categorie.nom}</span>
-                  <span>{profile.quartier}, {profile.ville}</span>
+                  <span>
+                    {profile.quartier}
+                    {profile.commune ? `, ${profile.commune}` : ""}, {profile.ville}
+                  </span>
+                  {profile.latitude == null && (
+                    <span className="text-yellow-500/80 text-xs">
+                      ⚠️ Position non définie — éditez votre profil pour apparaître sur la carte
+                    </span>
+                  )}
                 </div>
                 {profile.description && (
                   <p className="text-sm text-gray-400 mt-2 max-w-2xl">{profile.description}</p>
@@ -475,7 +513,7 @@ export default function ProviderDashboard() {
             />
 
             <motion.div
-              className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 md:p-8 max-w-lg w-full max-h-[85vh] overflow-y-auto"
+              className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 md:p-8 max-w-2xl w-full max-h-[85vh] overflow-y-auto"
               initial={{ scale: 0.9, y: 20, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 20, opacity: 0 }}
@@ -529,7 +567,7 @@ export default function ProviderDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1.5">Quartier</label>
                     <div className="relative">
@@ -539,10 +577,22 @@ export default function ProviderDashboard() {
                         name="quartier"
                         value={editForm.quartier}
                         onChange={handleEditChange}
-                        className="w-full pl-10 pr-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:border-teal-400/50 focus:outline-none transition-colors"
+                        placeholder="Riviera"
+                        className="w-full pl-10 pr-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
                         required
                       />
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1.5">Commune</label>
+                    <input
+                      type="text"
+                      name="commune"
+                      value={editForm.commune}
+                      onChange={handleEditChange}
+                      placeholder="Cocody"
+                      className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm text-gray-400 mb-1.5">Ville</label>
@@ -554,6 +604,20 @@ export default function ProviderDashboard() {
                       className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:border-teal-400/50 focus:outline-none transition-colors"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1.5">
+                    Position sur la carte <span className="text-gray-600">— recommandé</span>
+                  </label>
+                  <p className="text-xs text-gray-600 mb-2">
+                    Placez votre position exacte pour apparaître sur la carte LOKEVENT et dans les recherches "autour de moi".
+                  </p>
+                  <LocationPicker
+                    initialPosition={editPosition}
+                    onChange={setEditPosition}
+                    height="300px"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

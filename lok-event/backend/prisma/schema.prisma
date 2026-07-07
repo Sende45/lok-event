@@ -73,7 +73,10 @@ model Prestataire {
   nomEntreprise String
   description   String?
   quartier      String
+  commune       String?
   ville         String        @default("Abidjan")
+  latitude      Float?
+  longitude     Float?
   telephone     String?
   whatsapp      String?
   email         String?
@@ -92,6 +95,9 @@ model Prestataire {
   tags          Tag[]         @relation("PrestataireTags")
   favoris       Favori[]
 
+  @@index([ville, commune])
+  @@index([latitude, longitude])
+  @@index([categorieId])
   @@map("prestataires")
 }
 
