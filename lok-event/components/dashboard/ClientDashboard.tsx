@@ -10,6 +10,9 @@ import {
   Mail,
   Phone,
   Clock,
+  Star,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
@@ -28,10 +31,12 @@ interface UserData {
 
 interface Reservation {
   id: string;
+  prestataireId: string;
   dateEvenement: string;
   lieuEvenement: string;
   typeEvenement: string;
   statut: string;
+  avis: { id: string } | null;
   prestataire: {
     nomEntreprise: string;
     photos: string[];
@@ -53,6 +58,18 @@ export default function ClientDashboard() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Annulation
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  // Modal d'avis
+  const [avisReservation, setAvisReservation] = useState<Reservation | null>(null);
+  const [avisNote, setAvisNote] = useState(0);
+  const [avisHover, setAvisHover] = useState(0);
+  const [avisCommentaire, setAvisCommentaire] = useState("");
+  const [isSubmittingAvis, setIsSubmittingAvis] = useState(false);
+  const [avisError, setAvisError] = useState("");
+  const [avisSuccess, setAvisSuccess] = useState(false);
 
   useEffect(() => {
     async function loadDashboard() {
@@ -76,6 +93,62 @@ export default function ClientDashboard() {
     localStorage.removeItem("lokevent_token");
     localStorage.removeItem("lokevent_user");
     router.push("/login");
+  };
+
+  const handleAnnuler = async (reservationId: string) => {
+    if (!window.confirm("Voulez-vous vraiment annuler cette réservation ?")) return;
+    setCancellingId(reservationId);
+    try {
+      await api.patch(`/reservations/${reservationId}/annuler`, {});
+      setReservations((prev) =>
+        prev.map((r) => (r.id === reservationId ? { ...r, statut: "ANNULEE" } : r))
+      );
+    } catch (err) {
+      console.error("Erreur annulation:", err);
+      alert(err instanceof Error ? err.message : "Impossible d'annuler la réservation");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const handleOpenAvis = (reservation: Reservation) => {
+    setAvisReservation(reservation);
+    setAvisNote(0);
+    setAvisHover(0);
+    setAvisCommentaire("");
+    setAvisError("");
+    setAvisSuccess(false);
+  };
+
+  const handleSubmitAvis = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!avisReservation) return;
+    if (avisNote < 1) {
+      setAvisError("Veuillez sélectionner une note");
+      return;
+    }
+
+    setIsSubmittingAvis(true);
+    setAvisError("");
+    try {
+      const created = await api.post<{ id: string }>("/avis", {
+        prestataireId: avisReservation.prestataireId,
+        reservationId: avisReservation.id,
+        note: avisNote,
+        commentaire: avisCommentaire.trim() || undefined,
+      });
+      setAvisSuccess(true);
+      setReservations((prev) =>
+        prev.map((r) =>
+          r.id === avisReservation.id ? { ...r, avis: { id: created.id } } : r
+        )
+      );
+      setTimeout(() => setAvisReservation(null), 1800);
+    } catch (err) {
+      setAvisError(err instanceof Error ? err.message : "Une erreur est survenue");
+    } finally {
+      setIsSubmittingAvis(false);
+    }
   };
 
   if (isLoading) {
@@ -228,6 +301,37 @@ export default function ClientDashboard() {
                         {statutInfo.label}
                       </span>
                     </div>
+
+                    {/* Actions selon le statut */}
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      {(reservation.statut === "EN_ATTENTE" ||
+                        reservation.statut === "CONFIRMEE") && (
+                        <button
+                          onClick={() => handleAnnuler(reservation.id)}
+                          disabled={cancellingId === reservation.id}
+                          className="px-3 py-1.5 text-xs font-medium text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                        >
+                          {cancellingId === reservation.id ? "Annulation..." : "Annuler"}
+                        </button>
+                      )}
+
+                      {reservation.statut === "TERMINEE" && !reservation.avis && (
+                        <button
+                          onClick={() => handleOpenAvis(reservation)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-teal-400 text-black rounded-lg hover:bg-teal-300 transition-colors"
+                        >
+                          <Star className="w-3 h-3" />
+                          Laisser un avis
+                        </button>
+                      )}
+
+                      {reservation.statut === "TERMINEE" && reservation.avis && (
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-teal-400">
+                          <CheckCircle className="w-3 h-3" />
+                          Avis publié
+                        </span>
+                      )}
+                    </div>
                   </motion.div>
                 );
               })}
@@ -235,6 +339,121 @@ export default function ClientDashboard() {
           </motion.div>
         </div>
       </main>
+
+      {/* Modal d'avis vérifié */}
+      <AnimatePresence>
+        {avisReservation && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center px-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setAvisReservation(null)}
+            />
+
+            <motion.div
+              className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 md:p-8 max-w-md w-full"
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              transition={{ type: "spring", damping: 25 }}
+            >
+              {avisSuccess ? (
+                <div className="text-center py-6">
+                  <CheckCircle className="w-16 h-16 text-teal-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold mb-2">Merci pour votre avis !</h3>
+                  <p className="text-gray-400 text-sm">
+                    Il est maintenant visible sur la fiche de {avisReservation.prestataire.nomEntreprise}.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-xl font-bold text-white">Votre avis</h3>
+                    <button
+                      className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                      onClick={() => setAvisReservation(null)}
+                    >
+                      <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-400 mb-6">
+                    {avisReservation.prestataire.nomEntreprise} —{" "}
+                    {avisReservation.typeEvenement} du{" "}
+                    {new Date(avisReservation.dateEvenement).toLocaleDateString("fr-FR")}
+                  </p>
+
+                  <form onSubmit={handleSubmitAvis} className="space-y-4">
+                    {avisError && (
+                      <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        {avisError}
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Note</label>
+                      <div className="flex items-center gap-2">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => setAvisNote(n)}
+                            onMouseEnter={() => setAvisHover(n)}
+                            onMouseLeave={() => setAvisHover(0)}
+                            className="p-1 transition-transform hover:scale-110"
+                          >
+                            <Star
+                              className={`w-8 h-8 transition-colors ${
+                                n <= (avisHover || avisNote)
+                                  ? "text-yellow-500 fill-yellow-500"
+                                  : "text-gray-600 fill-gray-700"
+                              }`}
+                            />
+                          </button>
+                        ))}
+                        {avisNote > 0 && (
+                          <span className="text-sm text-gray-400 ml-2">{avisNote}/5</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1.5">
+                        Commentaire <span className="text-gray-600">— optionnel</span>
+                      </label>
+                      <textarea
+                        value={avisCommentaire}
+                        onChange={(e) => setAvisCommentaire(e.target.value)}
+                        placeholder="Partagez votre expérience..."
+                        rows={4}
+                        maxLength={1000}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors resize-none"
+                      />
+                    </div>
+
+                    <motion.button
+                      type="submit"
+                      disabled={isSubmittingAvis}
+                      className="w-full py-3 bg-gradient-to-r from-teal-400 to-teal-500 text-black font-bold rounded-lg hover:shadow-[0_0_30px_rgba(20,184,166,0.3)] transition-all disabled:opacity-50"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {isSubmittingAvis ? "Publication..." : "Publier mon avis"}
+                    </motion.button>
+                  </form>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -107,6 +107,7 @@ export default function ProviderDashboard() {
   } | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadDashboard() {
@@ -227,6 +228,21 @@ export default function ProviderDashboard() {
       setSaveError(err instanceof Error ? err.message : "Une erreur est survenue");
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  const handleBookingStatus = async (bookingId: string, statut: string) => {
+    setUpdatingBookingId(bookingId);
+    try {
+      await api.put(`/prestataires/bookings/${bookingId}/status`, { statut });
+      setBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, statut } : b))
+      );
+    } catch (err) {
+      console.error("Erreur mise à jour réservation:", err);
+      alert(err instanceof Error ? err.message : "Impossible de mettre à jour la réservation");
+    } finally {
+      setUpdatingBookingId(null);
     }
   };
 
@@ -448,9 +464,40 @@ export default function ProviderDashboard() {
                           {new Date(booking.dateEvenement).toLocaleDateString("fr-FR")}
                         </p>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statutInfo.color}`}>
-                        {statutInfo.label}
-                      </span>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statutInfo.color}`}>
+                          {statutInfo.label}
+                        </span>
+
+                        {booking.statut === "EN_ATTENTE" && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleBookingStatus(booking.id, "CONFIRMEE")}
+                              disabled={updatingBookingId === booking.id}
+                              className="px-3 py-1.5 text-xs font-medium bg-teal-400 text-black rounded-lg hover:bg-teal-300 transition-colors disabled:opacity-50"
+                            >
+                              Accepter
+                            </button>
+                            <button
+                              onClick={() => handleBookingStatus(booking.id, "ANNULEE")}
+                              disabled={updatingBookingId === booking.id}
+                              className="px-3 py-1.5 text-xs font-medium text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                            >
+                              Refuser
+                            </button>
+                          </div>
+                        )}
+
+                        {booking.statut === "CONFIRMEE" && (
+                          <button
+                            onClick={() => handleBookingStatus(booking.id, "TERMINEE")}
+                            disabled={updatingBookingId === booking.id}
+                            className="px-3 py-1.5 text-xs font-medium text-blue-400 border border-blue-500/20 rounded-lg hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+                          >
+                            Marquer terminé
+                          </button>
+                        )}
+                      </div>
                     </motion.div>
                   );
                 })}
