@@ -1,8 +1,19 @@
+// src/lib/api.ts
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("lokevent_token");
+}
+
+// Session expirée : on nettoie et on renvoie vers /login en mémorisant
+// la page courante pour y revenir après reconnexion
+function handleSessionExpired() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("lokevent_token");
+  localStorage.removeItem("lokevent_user");
+  const current = window.location.pathname + window.location.search;
+  window.location.href = `/login?redirect=${encodeURIComponent(current)}&expired=1`;
 }
 
 async function request<T>(
@@ -21,6 +32,15 @@ async function request<T>(
   });
 
   const data = (await res.json()) as { message?: string } & T;
+
+  // Token invalide ou expiré : déconnexion propre + redirection avec retour.
+  // Conditions : un token existait (sinon l'utilisateur navigue simplement
+  // sans être connecté) et ce n'est pas une route d'auth (sinon un mauvais
+  // mot de passe au login déclencherait la redirection).
+  if (res.status === 401 && token && !endpoint.startsWith("/auth/")) {
+    handleSessionExpired();
+    throw new Error("Session expirée, veuillez vous reconnecter");
+  }
 
   if (!res.ok) {
     throw new Error(data.message || "Une erreur est survenue");

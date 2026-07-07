@@ -13,6 +13,7 @@ import {
   Star,
   AlertCircle,
   CheckCircle,
+  Home,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
@@ -178,6 +179,13 @@ export default function ClientDashboard() {
           </Link>
 
           <div className="hidden md:flex items-center gap-6">
+            <Link
+              href="/"
+              className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-teal-400 transition-colors"
+            >
+              <Home className="w-4 h-4" />
+              <span className="text-sm">Accueil</span>
+            </Link>
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 transition-colors"
@@ -204,6 +212,14 @@ export default function ClientDashboard() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -100 }}
           >
+            <Link
+              href="/"
+              className="w-full flex items-center gap-3 px-4 py-3 text-gray-300"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <Home className="w-5 h-5" />
+              <span>Accueil</span>
+            </Link>
             <button
               onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-3 text-red-400"

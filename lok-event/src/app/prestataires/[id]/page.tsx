@@ -100,7 +100,7 @@ export default function PrestataireDetailPage() {
   const handleToggleFavorite = async () => {
     const token = localStorage.getItem("lokevent_token");
     if (!token) {
-      router.push("/login");
+      router.push(`/login?redirect=${encodeURIComponent(`/prestataires/${id}`)}`);
       return;
     }
 
@@ -123,7 +123,7 @@ export default function PrestataireDetailPage() {
   const handleOpenReservation = () => {
     const token = localStorage.getItem("lokevent_token");
     if (!token) {
-      router.push("/login");
+      router.push(`/login?redirect=${encodeURIComponent(`/prestataires/${id}`)}`);
       return;
     }
     setIsReservationModalOpen(true);

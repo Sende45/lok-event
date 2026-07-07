@@ -1,15 +1,27 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff, Sparkles, ArrowRight, ArrowLeft } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Sparkles, ArrowRight, ArrowLeft, Clock } from "lucide-react";
 import { api } from "@/lib/api";
 import { AuthResponse } from "@/types/user";
 
-export default function Login() {
+// Sécurité : on n'accepte que des chemins internes ("/...") pour éviter
+// qu'un lien malveillant redirige vers un site externe après connexion
+function safeRedirect(path: string | null): string | null {
+  if (!path) return null;
+  if (!path.startsWith("/") || path.startsWith("//")) return null;
+  return path;
+}
+
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = safeRedirect(searchParams.get("redirect"));
+  const sessionExpired = searchParams.get("expired") === "1";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -30,14 +42,16 @@ export default function Login() {
       localStorage.setItem("lokevent_token", data.token);
       localStorage.setItem("lokevent_user", JSON.stringify(data.user));
 
-      const redirectPath =
+      // Priorité au retour vers la page d'origine (ex: fiche prestataire),
+      // sinon dashboard selon le rôle
+      const dashboardPath =
         data.user.role === "ADMIN"
           ? "/admin"
           : data.user.role === "PRESTATAIRE"
           ? "/provider"
           : "/dashboard/client";
 
-      router.push(redirectPath);
+      router.push(redirectParam || dashboardPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Email ou mot de passe incorrect");
     } finally {
@@ -87,6 +101,27 @@ export default function Login() {
             </motion.div>
             <p className="text-gray-400 text-sm mt-2">Connectez-vous à votre compte</p>
           </div>
+
+          {sessionExpired && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-yellow-500 text-sm flex items-center gap-2"
+            >
+              <Clock className="w-4 h-4 flex-shrink-0" />
+              Session expirée, veuillez vous reconnecter.
+            </motion.div>
+          )}
+
+          {redirectParam && !sessionExpired && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 p-3 bg-teal-400/10 border border-teal-400/20 rounded-lg text-teal-400 text-sm"
+            >
+              Connectez-vous pour continuer — vous reviendrez ensuite là où vous étiez.
+            </motion.div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             {error && (
@@ -160,7 +195,14 @@ export default function Login() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-400">
               Pas encore de compte ?{" "}
-              <Link href="/register" className="text-teal-400 hover:text-teal-300 transition-colors font-medium">
+              <Link
+                href={
+                  redirectParam
+                    ? `/register?redirect=${encodeURIComponent(redirectParam)}`
+                    : "/register"
+                }
+                className="text-teal-400 hover:text-teal-300 transition-colors font-medium"
+              >
                 S'inscrire
               </Link>
             </p>
@@ -172,5 +214,21 @@ export default function Login() {
         </p>
       </motion.div>
     </div>
+  );
+}
+
+// useSearchParams exige une frontière Suspense en App Router,
+// sinon erreur au build ("useSearchParams() should be wrapped in a suspense boundary")
+export default function Login() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-teal-400/30 border-t-teal-400 rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }
