@@ -6,10 +6,22 @@ function getToken(): string | null {
   return localStorage.getItem("lokevent_token");
 }
 
+// Évite de déclencher plusieurs redirections simultanées quand plusieurs
+// appels API échouent en même temps (ex: Promise.all d'un dashboard)
+let sessionExpiredHandled = false;
+
 // Session expirée : on nettoie et on renvoie vers /login en mémorisant
 // la page courante pour y revenir après reconnexion
 function handleSessionExpired() {
   if (typeof window === "undefined") return;
+  if (sessionExpiredHandled) return;
+
+  // Jamais de redirection si on est déjà sur /login ou /register :
+  // c'est LA protection anti-boucle
+  const path = window.location.pathname;
+  if (path.startsWith("/login") || path.startsWith("/register")) return;
+
+  sessionExpiredHandled = true;
   localStorage.removeItem("lokevent_token");
   localStorage.removeItem("lokevent_user");
   const current = window.location.pathname + window.location.search;
