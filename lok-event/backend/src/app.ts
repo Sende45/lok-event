@@ -12,6 +12,7 @@ import tagRoutes from "./routes/tag.routes";
 import favoriRoutes from "./routes/favori.routes";
 import notificationRoutes from "./routes/notification.routes";
 import messageRoutes from "./routes/message.routes";
+import disponibiliteRoutes from "./routes/disponibilite.routes";
 import { globalLimiter } from "./middlewares/rateLimit.middleware";
 
 const app = express();
@@ -84,5 +85,6 @@ app.use("/api/tags", tagRoutes);
 app.use("/api/favoris", favoriRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/conversations", messageRoutes);
+app.use("/api/disponibilites", disponibiliteRoutes);
 
 export default app;

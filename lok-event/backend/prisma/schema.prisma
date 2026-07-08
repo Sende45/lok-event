@@ -70,6 +70,18 @@ model Message {
   @@map("messages")
 }
 
+model Indisponibilite {
+  id            String      @id @default(cuid())
+  prestataireId String
+  prestataire   Prestataire @relation(fields: [prestataireId], references: [id], onDelete: Cascade)
+  date          DateTime
+  motif         String?
+  createdAt     DateTime    @default(now())
+
+  @@unique([prestataireId, date])
+  @@map("indisponibilites")
+}
+
 model Notification {
   id        String   @id @default(cuid())
   userId    String
@@ -141,6 +153,7 @@ model Prestataire {
   tags          Tag[]         @relation("PrestataireTags")
   favoris       Favori[]
   conversations Conversation[]
+  indisponibilites Indisponibilite[]
 
   @@index([ville, commune])
   @@index([latitude, longitude])

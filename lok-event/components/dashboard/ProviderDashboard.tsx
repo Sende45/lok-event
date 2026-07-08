@@ -8,6 +8,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { api } from "@/lib/api";
 import { uploadToImgbb } from "@/lib/imgbb";
+import AvailabilityCalendar from "./AvailabilityCalendar";
 
 // ⚠️ Leaflet ne fonctionne pas en SSR : import dynamique obligatoire
 const LocationPicker = dynamic(() => import("@/components/map/LocationPicker"), {
@@ -541,6 +542,8 @@ export default function ProviderDashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
+            <AvailabilityCalendar />
+
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
               <h3 className="font-semibold mb-4">Avis récents</h3>
               <div className="space-y-3">

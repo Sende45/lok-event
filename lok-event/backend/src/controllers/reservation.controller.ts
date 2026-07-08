@@ -72,6 +72,33 @@ export const creerReservation = async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Vérification de disponibilité : date bloquée par le prestataire
+    // ou déjà prise par une réservation confirmée
+    const jourDebut = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const jourFin = new Date(jourDebut);
+    jourFin.setUTCDate(jourFin.getUTCDate() + 1);
+
+    const [dateBloquee, dateConfirmee] = await Promise.all([
+      prisma.indisponibilite.findFirst({
+        where: { prestataireId, date: { gte: jourDebut, lt: jourFin } },
+      }),
+      prisma.reservation.findFirst({
+        where: {
+          prestataireId,
+          statut: "CONFIRMEE",
+          dateEvenement: { gte: jourDebut, lt: jourFin },
+        },
+      }),
+    ]);
+
+    if (dateBloquee || dateConfirmee) {
+      res.status(400).json({
+        message:
+          "Ce prestataire n'est pas disponible à cette date. Choisissez une autre date ou contactez-le par message.",
+      });
+      return;
+    }
+
     const reservation = await prisma.reservation.create({
       data: {
         clientId: req.user!.id,
