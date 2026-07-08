@@ -129,6 +129,23 @@ export default function PrestataireDetailPage() {
     setIsReservationModalOpen(true);
   };
 
+  const handleOpenMessage = async () => {
+    const token = localStorage.getItem("lokevent_token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    try {
+      const conversation = await api.post<{ id: string }>("/conversations", {
+        prestataireId: id,
+      });
+      router.push(`/messages?c=${conversation.id}`);
+    } catch (err) {
+      console.error("Erreur ouverture conversation:", err);
+      alert(err instanceof Error ? err.message : "Impossible d'ouvrir la conversation");
+    }
+  };
+
   const handleReservationChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -280,6 +297,14 @@ export default function PrestataireDetailPage() {
                 <Calendar className="w-4 h-4 flex-shrink-0" />
                 <span className="hidden sm:inline">Demander une réservation</span>
                 <span className="sm:hidden">Réserver</span>
+              </button>
+
+              <button
+                onClick={handleOpenMessage}
+                className="flex-1 lg:flex-none justify-center flex items-center gap-2 px-4 md:px-5 py-3 bg-teal-400/10 border border-teal-400/30 text-teal-400 rounded-full font-medium text-sm md:text-base hover:bg-teal-400/20 transition-colors whitespace-nowrap"
+              >
+                <MessageCircle className="w-4 h-4 flex-shrink-0" />
+                Message
               </button>
 
               {hasContact ? (
