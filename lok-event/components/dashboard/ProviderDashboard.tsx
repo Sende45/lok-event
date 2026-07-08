@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Star, DollarSign, AlertCircle, LogOut, Menu, X, Camera, Trash2, Edit2, Building2, MapPin, Phone, FileText, Home } from "lucide-react";
+import { Calendar, Star, DollarSign, AlertCircle, LogOut, Menu, X, Camera, Trash2, Edit2, Building2, MapPin, Phone, FileText, Home, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -280,6 +280,13 @@ export default function ProviderDashboard() {
               <Home className="w-4 h-4" />
               <span className="text-sm">Accueil</span>
             </Link>
+            <Link
+              href="/messages"
+              className="flex items-center gap-2 px-3 py-2 text-gray-300 hover:text-teal-400 transition-colors"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span className="text-sm">Messages</span>
+            </Link>
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 px-3 py-2 text-red-400 hover:text-red-300 transition-colors"
@@ -309,6 +316,14 @@ export default function ProviderDashboard() {
             >
               <Home className="w-5 h-5" />
               <span>Accueil</span>
+            </Link>
+            <Link
+              href="/messages"
+              className="w-full flex items-center gap-3 px-4 py-3 text-gray-300"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <MessageSquare className="w-5 h-5" />
+              <span>Messages</span>
             </Link>
             <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-400">
               <LogOut className="w-5 h-5" />

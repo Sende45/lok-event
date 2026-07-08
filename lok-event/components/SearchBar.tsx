@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, LogIn, UserPlus, LogOut, LayoutDashboard, Heart, Calendar, MapPin, LocateFixed } from "lucide-react";
+import { Search, LogIn, UserPlus, LogOut, LayoutDashboard, Heart, Calendar, MapPin, LocateFixed, MessageSquare } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -417,6 +417,13 @@ export default function SearchBar() {
       <div className="relative flex-shrink-0 order-1 md:order-2 flex justify-end">
         {user ? (
           <div className="flex items-center gap-1 md:gap-3">
+            <Link
+              href="/messages"
+              title="Messages"
+              className="p-3 rounded-full hover:bg-white/10 active:bg-white/15 transition-colors"
+            >
+              <MessageSquare className="w-5 h-5 text-gray-300" />
+            </Link>
             <NotificationBell userId={user.id} />
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -455,6 +462,15 @@ export default function SearchBar() {
                     >
                       <LayoutDashboard className="w-4 h-4 text-teal-400" />
                       {getDashboardLabel()}
+                    </Link>
+
+                    <Link
+                      href="/messages"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 transition-colors"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <MessageSquare className="w-4 h-4 text-teal-400" />
+                      Messages
                     </Link>
 
                     {user.role === "CLIENT" && (
