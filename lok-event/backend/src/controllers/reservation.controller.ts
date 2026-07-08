@@ -1,6 +1,7 @@
 // backend/src/controllers/reservation.controller.ts
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
+import { sendNotification } from "./notification.controller";
 
 interface AuthRequest extends Request {
   user?: {
@@ -82,8 +83,22 @@ export const creerReservation = async (req: AuthRequest, res: Response) => {
         message: message || undefined,
         budget: budget ? parseFloat(budget) : undefined,
       },
-      include: { prestataire: { select: { nomEntreprise: true } } },
+      include: {
+        prestataire: { select: { nomEntreprise: true } },
+        client: { select: { nom: true, prenom: true } },
+      },
     });
+
+    // Notification temps réel au prestataire (fire-and-forget : un échec
+    // de notification ne doit pas faire échouer la réservation)
+    sendNotification(
+      prestataire.userId,
+      "RESERVATION",
+      "Nouvelle demande de réservation",
+      `${reservation.client.prenom} ${reservation.client.nom} — ${typeEvenement} le ${date.toLocaleDateString("fr-FR")} à ${lieuEvenement}`,
+      { reservationId: reservation.id }
+    );
+
     res.status(201).json(reservation);
   } catch (error) {
     console.error("Erreur création réservation:", error);
@@ -118,6 +133,7 @@ export const annulerReservation = async (req: AuthRequest, res: Response) => {
 
     const reservation = await prisma.reservation.findUnique({
       where: { id: reservationId },
+      include: { prestataire: { select: { userId: true } } },
     });
 
     if (!reservation) {
@@ -144,6 +160,16 @@ export const annulerReservation = async (req: AuthRequest, res: Response) => {
       data: { statut: "ANNULEE" },
       include: { prestataire: { select: { nomEntreprise: true } } },
     });
+
+    // Prévenir le prestataire de l'annulation
+    sendNotification(
+      reservation.prestataire.userId,
+      "RESERVATION",
+      "Réservation annulée",
+      `Le client a annulé la demande de ${reservation.typeEvenement} du ${reservation.dateEvenement.toLocaleDateString("fr-FR")}`,
+      { reservationId: reservation.id }
+    );
+
     res.json({ message: "Réservation annulée", reservation: updated });
   } catch (error) {
     console.error("Erreur annulation réservation:", error);
@@ -194,7 +220,31 @@ export const updateStatutReservation = async (req: AuthRequest, res: Response) =
     const updated = await prisma.reservation.update({
       where: { id: reservationId },
       data: { statut },
+      include: { prestataire: { select: { nomEntreprise: true } } },
     });
+
+    // Prévenir le client du changement de statut
+    const messagesStatut: Record<string, { titre: string; texte: string }> = {
+      CONFIRMEE: {
+        titre: "Réservation confirmée ✅",
+        texte: `${updated.prestataire.nomEntreprise} a accepté votre demande de ${updated.typeEvenement} du ${updated.dateEvenement.toLocaleDateString("fr-FR")}`,
+      },
+      ANNULEE: {
+        titre: "Réservation refusée",
+        texte: `${updated.prestataire.nomEntreprise} a décliné votre demande de ${updated.typeEvenement} du ${updated.dateEvenement.toLocaleDateString("fr-FR")}`,
+      },
+      TERMINEE: {
+        titre: "Prestation terminée 🎉",
+        texte: `Votre ${updated.typeEvenement} avec ${updated.prestataire.nomEntreprise} est marqué terminé. Vous pouvez maintenant laisser un avis !`,
+      },
+    };
+    const notif = messagesStatut[statut];
+    if (notif) {
+      sendNotification(updated.clientId, "RESERVATION", notif.titre, notif.texte, {
+        reservationId: updated.id,
+      });
+    }
+
     res.json(updated);
   } catch (error) {
     console.error("Erreur update statut réservation:", error);

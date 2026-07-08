@@ -365,15 +365,15 @@ export default function ProviderDashboard() {
                 )}
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-row sm:flex-col gap-2 w-full sm:w-auto">
                 <button
                   onClick={handleOpenEdit}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg font-medium hover:border-teal-400/50 hover:text-teal-400 transition-colors"
+                  className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-3 md:px-4 py-2 bg-white/5 border border-white/10 rounded-lg font-medium text-sm hover:border-teal-400/50 hover:text-teal-400 transition-colors whitespace-nowrap"
                 >
                   <Edit2 className="w-4 h-4" />
                   Éditer le profil
                 </button>
-                <label className="flex items-center gap-2 px-4 py-2 bg-teal-400 text-black rounded-lg font-medium hover:bg-teal-300 transition-colors cursor-pointer justify-center">
+                <label className="flex-1 sm:flex-none flex items-center gap-2 px-3 md:px-4 py-2 bg-teal-400 text-black rounded-lg font-medium text-sm hover:bg-teal-300 transition-colors cursor-pointer justify-center whitespace-nowrap">
                   <Camera className="w-4 h-4" />
                   {isUploading ? "Envoi..." : "Ajouter une photo"}
                   <input
@@ -467,7 +467,7 @@ export default function ProviderDashboard() {
                   return (
                     <motion.div
                       key={booking.id}
-                      className="flex flex-wrap items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
                       whileHover={{ scale: 1.01 }}
                     >
                       <div>
@@ -479,24 +479,24 @@ export default function ProviderDashboard() {
                           {new Date(booking.dateEvenement).toLocaleDateString("fr-FR")}
                         </p>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
+                      <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 w-full sm:w-auto">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${statutInfo.color}`}>
                           {statutInfo.label}
                         </span>
 
                         {booking.statut === "EN_ATTENTE" && (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-1 sm:flex-none justify-end">
                             <button
                               onClick={() => handleBookingStatus(booking.id, "CONFIRMEE")}
                               disabled={updatingBookingId === booking.id}
-                              className="px-3 py-1.5 text-xs font-medium bg-teal-400 text-black rounded-lg hover:bg-teal-300 transition-colors disabled:opacity-50"
+                              className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 text-xs font-medium bg-teal-400 text-black rounded-lg hover:bg-teal-300 active:bg-teal-500 transition-colors disabled:opacity-50 whitespace-nowrap"
                             >
                               Accepter
                             </button>
                             <button
                               onClick={() => handleBookingStatus(booking.id, "ANNULEE")}
                               disabled={updatingBookingId === booking.id}
-                              className="px-3 py-1.5 text-xs font-medium text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                              className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 text-xs font-medium text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/10 active:bg-red-500/20 transition-colors disabled:opacity-50 whitespace-nowrap"
                             >
                               Refuser
                             </button>
@@ -507,7 +507,7 @@ export default function ProviderDashboard() {
                           <button
                             onClick={() => handleBookingStatus(booking.id, "TERMINEE")}
                             disabled={updatingBookingId === booking.id}
-                            className="px-3 py-1.5 text-xs font-medium text-blue-400 border border-blue-500/20 rounded-lg hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+                            className="px-3 py-2 sm:py-1.5 text-xs font-medium text-blue-400 border border-blue-500/20 rounded-lg hover:bg-blue-500/10 active:bg-blue-500/20 transition-colors disabled:opacity-50 whitespace-nowrap"
                           >
                             Marquer terminé
                           </button>
@@ -575,7 +575,7 @@ export default function ProviderDashboard() {
             />
 
             <motion.div
-              className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 md:p-8 max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+              className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 md:p-8 max-w-2xl w-full max-h-[90vh] md:max-h-[85vh] overflow-y-auto"
               initial={{ scale: 0.9, y: 20, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 20, opacity: 0 }}
@@ -629,7 +629,7 @@ export default function ProviderDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1.5">Quartier</label>
                     <div className="relative">
@@ -682,7 +682,7 @@ export default function ProviderDashboard() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1.5">Téléphone</label>
                     <div className="relative">

@@ -301,7 +301,7 @@ export default function ClientDashboard() {
                             {reservation.typeEvenement}
                           </span>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400 mt-1">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             {new Date(reservation.dateEvenement).toLocaleDateString("fr-FR")}
@@ -374,7 +374,7 @@ export default function ClientDashboard() {
             />
 
             <motion.div
-              className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 md:p-8 max-w-md w-full"
+              className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 md:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
               initial={{ scale: 0.9, y: 20, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 20, opacity: 0 }}

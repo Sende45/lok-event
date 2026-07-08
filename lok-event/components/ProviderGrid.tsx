@@ -141,13 +141,13 @@ export default function ProviderGrid({ filters }: { filters: ProviderFilters }) 
   };
 
   return (
-    <section className="max-w-[1600px] mx-auto px-8 py-16">
-      <div className="mb-12 flex flex-wrap items-end justify-between gap-4">
+    <section className="max-w-[1600px] mx-auto px-4 md:px-8 py-8 md:py-16">
+      <div className="mb-8 md:mb-12 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div>
           <h2 className="text-[var(--color-primary)] text-[11px] uppercase tracking-[0.3em] font-bold mb-3">
             Abidjan, Côte d'Ivoire
           </h2>
-          <h3 className="text-4xl font-bold tracking-tight text-white">
+          <h3 className="text-2xl md:text-4xl font-bold tracking-tight text-white">
             {isLoading ? "..." : total} Prestataires d'élite
             {modeProximite && (
               <span className="block text-sm font-normal text-teal-400 mt-1">
@@ -157,19 +157,19 @@ export default function ProviderGrid({ filters }: { filters: ProviderFilters }) 
           </h3>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3 w-full lg:w-auto">
           <button
             onClick={chercherAutourDeMoi}
             disabled={isLocating}
-            className="px-4 py-2 rounded-lg bg-teal-400 text-black text-sm font-medium hover:bg-teal-300 disabled:opacity-50 transition-colors"
+            className="flex-1 lg:flex-none px-3 md:px-4 py-2.5 md:py-2 rounded-lg bg-teal-400 text-black text-xs md:text-sm font-medium hover:bg-teal-300 active:bg-teal-500 disabled:opacity-50 transition-colors whitespace-nowrap"
           >
             {isLocating ? "Localisation..." : "📍 Autour de moi"}
           </button>
 
-          <div className="flex rounded-lg overflow-hidden border border-white/10">
+          <div className="flex flex-1 lg:flex-none rounded-lg overflow-hidden border border-white/10">
             <button
               onClick={() => setVue("liste")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex-1 lg:flex-none px-3 md:px-4 py-2.5 md:py-2 text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
                 vue === "liste"
                   ? "bg-white/10 text-white"
                   : "bg-transparent text-gray-400 hover:text-white"
@@ -179,7 +179,7 @@ export default function ProviderGrid({ filters }: { filters: ProviderFilters }) 
             </button>
             <button
               onClick={() => setVue("carte")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex-1 lg:flex-none px-3 md:px-4 py-2.5 md:py-2 text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
                 vue === "carte"
                   ? "bg-white/10 text-white"
                   : "bg-transparent text-gray-400 hover:text-white"
@@ -202,7 +202,7 @@ export default function ProviderGrid({ filters }: { filters: ProviderFilters }) 
       )}
 
       {vue === "liste" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
           {providers.map((p) => (
             <div key={p.id} className="will-change-transform">
               <ProviderCard p={p} />
@@ -210,7 +210,7 @@ export default function ProviderGrid({ filters }: { filters: ProviderFilters }) 
           ))}
         </div>
       ) : (
-        <ProvidersMapWrapper prestataires={prestatairesRaw} height="600px" />
+        <ProvidersMapWrapper prestataires={prestatairesRaw} height="65vh" />
       )}
     </section>
   );

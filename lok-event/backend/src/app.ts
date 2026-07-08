@@ -10,6 +10,7 @@ import avisRoutes from "./routes/avis.routes";
 import adminRoutes from "./routes/admin.routes";
 import tagRoutes from "./routes/tag.routes";
 import favoriRoutes from "./routes/favori.routes";
+import notificationRoutes from "./routes/notification.routes";
 import { globalLimiter } from "./middlewares/rateLimit.middleware";
 
 const app = express();
@@ -80,5 +81,6 @@ app.use("/api/avis", avisRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/tags", tagRoutes);
 app.use("/api/favoris", favoriRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 export default app;

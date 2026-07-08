@@ -1,16 +1,15 @@
 // backend/src/server.ts
-import dotenv from "dotenv";
-dotenv.config();
-
+import http from "http";
 import app from "./app";
+import { initSocket } from "./lib/socket";
 
 const PORT = process.env.PORT || 5000;
 
-if (!process.env.FRONTEND_URL && process.env.NODE_ENV === "production") {
-  console.error(
-    "ERREUR CRITIQUE : FRONTEND_URL n'est pas défini en production. Arrêt du serveur."
-  );
-  process.exit(1);
-}
+// ⚠️ Socket.io a besoin du serveur HTTP brut, pas de app.listen()
+const server = http.createServer(app);
 
-app.listen(PORT, () => console.log(`LOKEVENT API running on port ${PORT}`));
+initSocket(server);
+
+server.listen(PORT, () => {
+  console.log(`LOKEVENT API running on port ${PORT}`);
+});

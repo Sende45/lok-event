@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
+import NotificationBell from "@/components/notifications/NotificationBell";
 
 interface User {
   id: string;
@@ -415,7 +416,8 @@ export default function SearchBar() {
 
       <div className="relative flex-shrink-0 order-1 md:order-2 flex justify-end">
         {user ? (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 md:gap-3">
+            <NotificationBell userId={user.id} />
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="flex items-center gap-2 px-2.5 md:px-3 py-2 rounded-full bg-white/5 border border-white/10 hover:border-teal-400/50 transition-all hover:bg-white/10"

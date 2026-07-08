@@ -109,7 +109,7 @@ export default function ProviderSetup() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 sm:p-8 shadow-2xl">
           <div className="text-center mb-8">
             <motion.div
               initial={{ scale: 0 }}
@@ -196,7 +196,7 @@ export default function ProviderSetup() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm text-gray-400 mb-1.5">Quartier</label>
                 <div className="relative">
@@ -251,7 +251,7 @@ export default function ProviderSetup() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm text-gray-400 mb-1.5">Téléphone</label>
                 <div className="relative">
@@ -280,7 +280,7 @@ export default function ProviderSetup() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm text-gray-400 mb-1.5">Prix minimum (FCFA)</label>
                 <div className="relative">
