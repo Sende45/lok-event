@@ -279,8 +279,8 @@ export default function SearchBar() {
       : "bg-teal-500/20 text-teal-400";
 
   return (
-    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4 w-full">
-      <div className="relative flex-1 md:max-w-3xl order-1">
+    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-4 w-full">
+      <div className="relative flex-1 md:max-w-3xl order-2 md:order-1">
         <div className="flex flex-col sm:flex-row gap-2">
           {/* Champ QUOI */}
           <div className="relative flex-1">
@@ -289,8 +289,9 @@ export default function SearchBar() {
                 isSearchFocused ? "text-teal-400" : "text-gray-500"
               }`}
             />
+            {/* text-base sur mobile pour éviter le zoom automatique iOS (<16px) */}
             <input
-              className="w-full bg-white/5 border border-white/10 rounded-full py-3 pl-12 pr-4 text-sm outline-none transition-all duration-300 focus:border-teal-400 focus:ring-1 focus:ring-teal-400/20 shadow-xl placeholder:text-gray-500 text-white"
+              className="w-full bg-white/5 border border-white/10 rounded-full py-2.5 md:py-3 pl-12 pr-4 text-base sm:text-sm outline-none transition-all duration-300 focus:border-teal-400 focus:ring-1 focus:ring-teal-400/20 shadow-xl placeholder:text-gray-500 text-white"
               placeholder="Traiteur, DJ, décoration..."
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
@@ -300,14 +301,14 @@ export default function SearchBar() {
           </div>
 
           {/* Champ OÙ */}
-          <div className="relative sm:w-52">
+          <div className="relative sm:w-44 md:w-52">
             <MapPin
               className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${
                 isLocationFocused ? "text-teal-400" : "text-gray-500"
               }`}
             />
             <input
-              className="w-full bg-white/5 border border-white/10 rounded-full py-3 pl-11 pr-11 text-sm outline-none transition-all duration-300 focus:border-teal-400 focus:ring-1 focus:ring-teal-400/20 shadow-xl placeholder:text-gray-500 text-white"
+              className="w-full bg-white/5 border border-white/10 rounded-full py-2.5 md:py-3 pl-11 pr-11 text-base sm:text-sm outline-none transition-all duration-300 focus:border-teal-400 focus:ring-1 focus:ring-teal-400/20 shadow-xl placeholder:text-gray-500 text-white"
               placeholder="Où ?"
               value={locationValue}
               onChange={(e) => {
@@ -320,13 +321,13 @@ export default function SearchBar() {
               }}
               onBlur={() => setTimeout(() => setIsLocationFocused(false), 200)}
             />
-            {/* Bouton géolocalisation */}
+            {/* Bouton géolocalisation — zone tactile élargie sur mobile */}
             <button
               type="button"
               onClick={handleNearMe}
               disabled={isLocating}
               title="Chercher autour de moi"
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-gray-500 hover:text-teal-400 hover:bg-teal-400/10 transition-colors disabled:opacity-50"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 rounded-full text-gray-500 hover:text-teal-400 hover:bg-teal-400/10 transition-colors disabled:opacity-50"
             >
               <LocateFixed className={`w-4 h-4 ${isLocating ? "animate-pulse text-teal-400" : ""}`} />
             </button>
@@ -338,16 +339,16 @@ export default function SearchBar() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="absolute top-full mt-2 left-0 right-0 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 max-h-64 overflow-y-auto"
+                  className="absolute top-full mt-2 left-0 right-0 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 max-h-56 md:max-h-64 overflow-y-auto"
                 >
                   {locationSuggestions.map((loc) => (
                     <button
                       key={loc.label}
-                      className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-white/5 transition-colors flex items-center gap-2"
+                      className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-white/5 active:bg-white/10 transition-colors flex items-center gap-2"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handleSelectLocation(loc.label)}
                     >
-                      <MapPin className="w-3.5 h-3.5 text-gray-500" />
+                      <MapPin className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
                       {loc.label}
                       {loc.badge && (
                         <span className="text-[10px] text-gray-600 ml-auto">{loc.badge}</span>
@@ -360,14 +361,14 @@ export default function SearchBar() {
           </div>
         </div>
 
-        {/* Résultats de recherche */}
+        {/* Résultats de recherche — hauteur limitée avec défilement sur petit écran */}
         <AnimatePresence>
           {showResultsDropdown && !isLocationFocused && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="absolute top-full mt-2 left-0 right-0 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+              className="absolute top-full mt-2 left-0 right-0 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 max-h-[60vh] overflow-y-auto"
             >
               {isSearching && (
                 <div className="px-4 py-3 text-sm text-gray-500">Recherche...</div>
@@ -387,7 +388,7 @@ export default function SearchBar() {
                 results.map((r) => (
                   <button
                     key={r.id}
-                    className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 transition-colors flex items-center justify-between gap-3"
+                    className="w-full px-4 py-3 text-left text-sm text-gray-300 hover:bg-white/5 active:bg-white/10 transition-colors flex items-center justify-between gap-3"
                     onClick={() => handleSelectResult(r.id)}
                   >
                     <span className="flex items-center gap-3 min-w-0">
@@ -412,12 +413,12 @@ export default function SearchBar() {
         </AnimatePresence>
       </div>
 
-      <div className="relative flex-shrink-0 order-2">
+      <div className="relative flex-shrink-0 order-1 md:order-2 flex justify-end">
         {user ? (
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 border border-white/10 hover:border-teal-400/50 transition-all hover:bg-white/10"
+              className="flex items-center gap-2 px-2.5 md:px-3 py-2 rounded-full bg-white/5 border border-white/10 hover:border-teal-400/50 transition-all hover:bg-white/10"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-r from-teal-400 to-teal-500 flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
                 {getInitials(user.nom, user.prenom)}
@@ -435,13 +436,13 @@ export default function SearchBar() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute left-0 right-0 md:right-auto top-full mt-2 md:w-72 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+                  className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-xs md:w-72 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
                 >
                   <div className="px-4 py-3 border-b border-white/5">
                     <p className="font-medium text-white">
                       {user.prenom} {user.nom}
                     </p>
-                    <p className="text-xs text-gray-400">{user.email}</p>
+                    <p className="text-xs text-gray-400 truncate">{user.email}</p>
                   </div>
 
                   <div className="py-2">
@@ -489,7 +490,7 @@ export default function SearchBar() {
             </AnimatePresence>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:flex items-center gap-2">
+          <div className="grid grid-cols-2 md:flex items-center gap-2 w-full md:w-auto">
             <Link
               href="/login"
               className="flex items-center justify-center gap-2 px-4 py-2.5 md:py-2 text-sm text-gray-300 hover:text-white transition-colors rounded-lg bg-white/5 md:bg-transparent hover:bg-white/10 md:hover:bg-white/5"

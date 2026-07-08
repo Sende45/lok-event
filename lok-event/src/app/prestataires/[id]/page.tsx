@@ -100,7 +100,7 @@ export default function PrestataireDetailPage() {
   const handleToggleFavorite = async () => {
     const token = localStorage.getItem("lokevent_token");
     if (!token) {
-      router.push(`/login?redirect=${encodeURIComponent(`/prestataires/${id}`)}`);
+      router.push("/login");
       return;
     }
 
@@ -123,7 +123,7 @@ export default function PrestataireDetailPage() {
   const handleOpenReservation = () => {
     const token = localStorage.getItem("lokevent_token");
     if (!token) {
-      router.push(`/login?redirect=${encodeURIComponent(`/prestataires/${id}`)}`);
+      router.push("/login");
       return;
     }
     setIsReservationModalOpen(true);
@@ -200,21 +200,22 @@ export default function PrestataireDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
+      <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 md:py-8">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6 text-sm"
+          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4 md:mb-6 text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
           Retour
         </button>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <div className="relative h-96 rounded-2xl overflow-hidden border border-white/10 mb-4">
+          {/* Photo principale : hauteur progressive selon l'écran */}
+          <div className="relative h-56 sm:h-72 md:h-96 rounded-2xl overflow-hidden border border-white/10 mb-4">
             {mainPhoto ? (
               <Image src={mainPhoto} alt={prestataire.nomEntreprise} fill className="object-cover" />
             ) : (
-              <div className="w-full h-full bg-gradient-to-tr from-teal-400/20 to-teal-600/10 flex items-center justify-center text-6xl font-bold text-teal-400/40">
+              <div className="w-full h-full bg-gradient-to-tr from-teal-400/20 to-teal-600/10 flex items-center justify-center text-5xl md:text-6xl font-bold text-teal-400/40">
                 {prestataire.nomEntreprise.slice(0, 2).toUpperCase()}
               </div>
             )}
@@ -222,12 +223,12 @@ export default function PrestataireDetailPage() {
           </div>
 
           {prestataire.photos.length > 1 && (
-            <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+            <div className="flex gap-2 mb-6 md:mb-8 overflow-x-auto pb-2">
               {prestataire.photos.map((url, i) => (
                 <button
                   key={url}
                   onClick={() => setActivePhoto(i)}
-                  className={`relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-colors ${
+                  className={`relative w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-colors ${
                     activePhoto === i ? "border-teal-400" : "border-transparent"
                   }`}
                 >
@@ -237,10 +238,10 @@ export default function PrestataireDetailPage() {
             </div>
           )}
 
-          <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold">{prestataire.nomEntreprise}</h1>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl md:text-3xl font-bold">{prestataire.nomEntreprise}</h1>
                 {prestataire.verifie && (
                   <span className="bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
                     <CheckCircle className="w-3 h-3" />
@@ -248,7 +249,7 @@ export default function PrestataireDetailPage() {
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mt-2">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400 mt-2">
                 <span>{prestataire.categorie.nom}</span>
                 <span className="flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5 text-teal-400" />
@@ -262,29 +263,31 @@ export default function PrestataireDetailPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            {/* Actions : pleine largeur empilée sur mobile, en ligne sur desktop */}
+            <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto">
               <button
                 onClick={handleToggleFavorite}
                 disabled={isTogglingFavori}
-                className="p-3 bg-white/5 border border-white/10 rounded-full hover:border-teal-400/50 transition-colors disabled:opacity-50"
+                className="p-3 bg-white/5 border border-white/10 rounded-full hover:border-teal-400/50 transition-colors disabled:opacity-50 flex-shrink-0"
               >
                 <Heart className={`w-5 h-5 ${isFavorite ? "text-red-500 fill-red-500" : "text-gray-400"}`} />
               </button>
 
               <button
                 onClick={handleOpenReservation}
-                className="flex items-center gap-2 px-5 py-3 bg-white/5 border border-white/10 rounded-full font-medium hover:border-teal-400/50 hover:text-teal-400 transition-colors"
+                className="flex-1 lg:flex-none justify-center flex items-center gap-2 px-4 md:px-5 py-3 bg-white/5 border border-white/10 rounded-full font-medium text-sm md:text-base hover:border-teal-400/50 hover:text-teal-400 transition-colors whitespace-nowrap"
               >
-                <Calendar className="w-4 h-4" />
-                Demander une réservation
+                <Calendar className="w-4 h-4 flex-shrink-0" />
+                <span className="hidden sm:inline">Demander une réservation</span>
+                <span className="sm:hidden">Réserver</span>
               </button>
 
               {hasContact ? (
                 <button
                   onClick={handleContact}
-                  className="flex items-center gap-2 px-6 py-3 bg-[#25D366] text-black font-bold rounded-full hover:shadow-[0_0_30px_rgba(37,211,102,0.4)] transition-all"
+                  className="flex-1 lg:flex-none justify-center flex items-center gap-2 px-4 md:px-6 py-3 bg-[#25D366] text-black font-bold rounded-full text-sm md:text-base hover:shadow-[0_0_30px_rgba(37,211,102,0.4)] transition-all whitespace-nowrap"
                 >
-                  <MessageCircle className="w-4 h-4" />
+                  <MessageCircle className="w-4 h-4 flex-shrink-0" />
                   Contacter
                 </button>
               ) : (
@@ -294,22 +297,22 @@ export default function PrestataireDetailPage() {
           </div>
 
           {(prestataire.prixMin || prestataire.prixMax) && (
-            <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-xl inline-block">
+            <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-xl inline-block max-w-full">
               <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Fourchette de prix</p>
-              <p className="font-mono text-lg font-semibold">
+              <p className="font-mono text-base md:text-lg font-semibold break-words">
                 {prestataire.prixMin?.toLocaleString() ?? "—"} à {prestataire.prixMax?.toLocaleString() ?? "—"} FCFA
               </p>
             </div>
           )}
 
           {prestataire.description && (
-            <div className="mb-8">
+            <div className="mb-6 md:mb-8">
               <h2 className="text-lg font-bold mb-2">À propos</h2>
-              <p className="text-gray-400 leading-relaxed">{prestataire.description}</p>
+              <p className="text-gray-400 leading-relaxed text-sm md:text-base">{prestataire.description}</p>
             </div>
           )}
 
-          <div className="mb-8">
+          <div className="mb-6 md:mb-8">
             <ProviderMiniMap
               latitude={prestataire.latitude}
               longitude={prestataire.longitude}
@@ -331,11 +334,11 @@ export default function PrestataireDetailPage() {
               )}
               {prestataire.avis.map((avis) => (
                 <div key={avis.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="font-medium text-sm">
+                  <div className="flex items-center justify-between mb-1 gap-2">
+                    <p className="font-medium text-sm truncate">
                       {avis.auteur.prenom} {avis.auteur.nom}
                     </p>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 flex-shrink-0">
                       {new Date(avis.createdAt).toLocaleDateString("fr-FR")}
                     </span>
                   </div>
@@ -358,7 +361,7 @@ export default function PrestataireDetailPage() {
       <AnimatePresence>
         {isReservationModalOpen && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center px-4"
+            className="fixed inset-0 z-50 flex items-center justify-center px-3 md:px-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -372,7 +375,7 @@ export default function PrestataireDetailPage() {
             />
 
             <motion.div
-              className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 md:p-8 max-w-lg w-full max-h-[85vh] overflow-y-auto"
+              className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 md:p-8 max-w-lg w-full max-h-[90vh] md:max-h-[85vh] overflow-y-auto"
               initial={{ scale: 0.9, y: 20, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 20, opacity: 0 }}
@@ -389,7 +392,7 @@ export default function PrestataireDetailPage() {
               ) : (
                 <>
                   <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-white">Demande de réservation</h3>
+                    <h3 className="text-lg md:text-xl font-bold text-white">Demande de réservation</h3>
                     <button
                       className="p-2 rounded-full hover:bg-white/10 transition-colors"
                       onClick={() => setIsReservationModalOpen(false)}
@@ -401,7 +404,7 @@ export default function PrestataireDetailPage() {
                   <form onSubmit={handleSubmitReservation} className="space-y-4">
                     {reservationError && (
                       <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4" />
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
                         {reservationError}
                       </div>
                     )}
@@ -413,7 +416,7 @@ export default function PrestataireDetailPage() {
                         name="dateEvenement"
                         value={reservationForm.dateEvenement}
                         onChange={handleReservationChange}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:border-teal-400/50 focus:outline-none transition-colors"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-base sm:text-sm focus:border-teal-400/50 focus:outline-none transition-colors"
                         required
                       />
                     </div>
@@ -426,7 +429,7 @@ export default function PrestataireDetailPage() {
                         value={reservationForm.lieuEvenement}
                         onChange={handleReservationChange}
                         placeholder="Hôtel Ivoire, Cocody"
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-base sm:text-sm placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
                         required
                       />
                     </div>
@@ -439,12 +442,13 @@ export default function PrestataireDetailPage() {
                         value={reservationForm.typeEvenement}
                         onChange={handleReservationChange}
                         placeholder="Mariage, anniversaire, gala..."
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-base sm:text-sm placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
                         required
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    {/* 1 colonne sur très petit écran, 2 colonnes dès sm */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-sm text-gray-400 mb-1.5">Nombre de personnes</label>
                         <input
@@ -453,7 +457,7 @@ export default function PrestataireDetailPage() {
                           value={reservationForm.nombrePersonnes}
                           onChange={handleReservationChange}
                           placeholder="80"
-                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-base sm:text-sm placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
                         />
                       </div>
                       <div>
@@ -464,7 +468,7 @@ export default function PrestataireDetailPage() {
                           value={reservationForm.budget}
                           onChange={handleReservationChange}
                           placeholder="500000"
-                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-base sm:text-sm placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
                         />
                       </div>
                     </div>
@@ -477,7 +481,7 @@ export default function PrestataireDetailPage() {
                         onChange={handleReservationChange}
                         placeholder="Précisez vos besoins..."
                         rows={3}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors resize-none"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-base sm:text-sm placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors resize-none"
                       />
                     </div>
 
