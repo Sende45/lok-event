@@ -1,13 +1,15 @@
+// backend/src/middlewares/auth.middleware.ts
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
 
-export interface AuthRequest extends Request {
-  user?: { id: string; role: string };
-}
+// La propriété req.user est désormais déclarée GLOBALEMENT sur Request
+// (via src/types/express.d.ts). On garde cet alias uniquement pour que
+// les fichiers qui importent encore AuthRequest continuent de compiler.
+export type AuthRequest = Request;
 
 export const protect = async (
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ) => {
@@ -20,8 +22,15 @@ export const protect = async (
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
       id: string;
       role: string;
+      email?: string;
     };
-    req.user = decoded;
+    // email avec repli sur chaîne vide : le type global exige email: string,
+    // mais selon la date de génération du token, le payload peut ne pas le contenir
+    req.user = {
+      id: decoded.id,
+      role: decoded.role,
+      email: decoded.email ?? "",
+    };
     next();
   } catch {
     res.status(401).json({ message: "Token invalide" });
@@ -29,7 +38,7 @@ export const protect = async (
 };
 
 export const adminOnly = (
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ) => {
