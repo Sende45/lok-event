@@ -1002,6 +1002,10 @@ export const getPrestatairePublic = async (req: Request, res: Response) => {
       include: {
         categorie: true,
         user: { select: { id: true, nom: true, prenom: true, avatar: true } },
+        services: {
+          where: { actif: true },
+          orderBy: { prix: "asc" },
+        },
         _count: { select: { avis: true, reservations: true } },
       },
     });

@@ -82,6 +82,22 @@ model Indisponibilite {
   @@map("indisponibilites")
 }
 
+model Service {
+  id            String      @id @default(cuid())
+  prestataireId String
+  prestataire   Prestataire @relation(fields: [prestataireId], references: [id], onDelete: Cascade)
+  nom           String
+  description   String?
+  prix          Float
+  unite         String? // "forfait", "par personne", "par heure", "par jour"
+  actif         Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([prestataireId, actif])
+  @@map("services")
+}
+
 model Notification {
   id        String   @id @default(cuid())
   userId    String
@@ -154,6 +170,7 @@ model Prestataire {
   favoris       Favori[]
   conversations Conversation[]
   indisponibilites Indisponibilite[]
+  services      Service[]
 
   @@index([ville, commune])
   @@index([latitude, longitude])

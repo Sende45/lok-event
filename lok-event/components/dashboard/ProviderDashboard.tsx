@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 import { api } from "@/lib/api";
 import { uploadToImgbb } from "@/lib/imgbb";
 import AvailabilityCalendar from "./AvailabilityCalendar";
+import ServicesManager from "./ServicesManager";
 
 // ⚠️ Leaflet ne fonctionne pas en SSR : import dynamique obligatoire
 const LocationPicker = dynamic(() => import("@/components/map/LocationPicker"), {
@@ -533,6 +534,10 @@ export default function ProviderDashboard() {
                   );
                 })}
               </div>
+            </div>
+
+            <div className="mt-6">
+              <ServicesManager />
             </div>
           </motion.div>
 

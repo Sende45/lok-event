@@ -24,6 +24,14 @@ interface Avis {
   auteur: { nom: string; prenom: string };
 }
 
+interface Service {
+  id: string;
+  nom: string;
+  description: string | null;
+  prix: number;
+  unite: string | null;
+}
+
 interface PrestataireDetail {
   id: string;
   nomEntreprise: string;
@@ -42,6 +50,7 @@ interface PrestataireDetail {
   totalAvis: number;
   verifie: boolean;
   categorie: { nom: string; couleur?: string | null };
+  services: Service[];
   avis: Avis[];
   _count: { avis: number; reservations: number };
 }
@@ -334,6 +343,36 @@ export default function PrestataireDetailPage() {
             <div className="mb-6 md:mb-8">
               <h2 className="text-lg font-bold mb-2">À propos</h2>
               <p className="text-gray-400 leading-relaxed text-sm md:text-base">{prestataire.description}</p>
+            </div>
+          )}
+
+          {prestataire.services && prestataire.services.length > 0 && (
+            <div className="mb-6 md:mb-8">
+              <h2 className="text-lg font-bold mb-3">Prestations & tarifs</h2>
+              <div className="space-y-2">
+                {prestataire.services.map((service) => (
+                  <div
+                    key={service.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3 p-3.5 bg-white/5 border border-white/10 rounded-xl hover:border-teal-400/30 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm md:text-base">{service.nom}</p>
+                      {service.description && (
+                        <p className="text-xs md:text-sm text-gray-500">{service.description}</p>
+                      )}
+                    </div>
+                    <p className="font-mono font-semibold text-teal-400 text-sm md:text-base whitespace-nowrap flex-shrink-0">
+                      {service.prix.toLocaleString("fr-FR")} FCFA
+                      {service.unite && service.unite !== "forfait" && (
+                        <span className="text-gray-500 font-sans font-normal text-xs"> {service.unite}</span>
+                      )}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-gray-600 mt-2">
+                Tarifs indicatifs communiqués par le prestataire. Le prix définitif est convenu directement avec lui.
+              </p>
             </div>
           )}
 
