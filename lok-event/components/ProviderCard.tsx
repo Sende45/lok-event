@@ -41,8 +41,12 @@ export default function ProviderCard({
         await api.post("/favoris", { prestataireId: p.id });
         setIsFavorite(true);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erreur favori:", err);
+      // Gestion spécifique "Déjà dans vos favoris"
+      if (err.message?.includes("Déjà dans vos favoris")) {
+        setIsFavorite(true);
+      }
     } finally {
       setIsToggling(false);
     }
