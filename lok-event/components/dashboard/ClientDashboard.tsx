@@ -171,83 +171,89 @@ export default function ClientDashboard() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-8 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold tracking-tight">
-              LOK<span className="text-teal-400">EVENT</span>
-            </span>
-          </Link>
+      <header className="sticky top-0 z-50 bg-[#0a0a0a] border-b border-white/5">
+        <nav className="px-4 md:px-8 py-3 md:py-4">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="text-2xl font-bold tracking-tight">
+                LOK<span className="text-teal-400">EVENT</span>
+              </span>
+            </Link>
 
-          <div className="hidden md:flex items-center gap-6">
-            <Link
-              href="/"
-              className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-teal-400 transition-colors"
-            >
-              <Home className="w-4 h-4" />
-              <span className="text-sm">Accueil</span>
-            </Link>
-            <Link
-              href="/messages"
-              className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-teal-400 transition-colors"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span className="text-sm">Messages</span>
-            </Link>
+            <div className="hidden md:flex items-center gap-6">
+              <Link
+                href="/"
+                className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-teal-400 transition-colors"
+              >
+                <Home className="w-4 h-4" />
+                <span className="text-sm">Accueil</span>
+              </Link>
+              <Link
+                href="/messages"
+                className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-teal-400 transition-colors"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span className="text-sm">Messages</span>
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="text-sm">Déconnexion</span>
+              </button>
+            </div>
+
             <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 transition-colors"
+              className="md:hidden p-2 rounded-full text-white hover:bg-white/10 active:bg-white/15 transition-colors"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
-              <LogOut className="w-4 h-4" />
-              <span className="text-sm">Déconnexion</span>
+              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
+        </nav>
 
-          <button
-            className="md:hidden text-white"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
-      </nav>
+        {/* Menu mobile DANS le header : il pousse le contenu au lieu de flotter dessus */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              className="md:hidden overflow-hidden bg-[#0a0a0a] border-t border-white/5"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+            >
+              <div className="px-4 py-2">
+                <Link
+                  href="/"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-white/5 active:bg-white/10 transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Home className="w-5 h-5" />
+                  <span>Accueil</span>
+                </Link>
+                <Link
+                  href="/messages"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-white/5 active:bg-white/10 transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  <span>Messages</span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-500/10 active:bg-red-500/15 transition-colors border-t border-white/5 mt-1"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Déconnexion</span>
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </header>
 
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            className="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl pt-20 px-6 md:hidden"
-            initial={{ opacity: 0, x: -100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -100 }}
-          >
-            <Link
-              href="/"
-              className="w-full flex items-center gap-3 px-4 py-3 text-gray-300"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              <Home className="w-5 h-5" />
-              <span>Accueil</span>
-            </Link>
-            <Link
-              href="/messages"
-              className="w-full flex items-center gap-3 px-4 py-3 text-gray-300"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              <MessageSquare className="w-5 h-5" />
-              <span>Messages</span>
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 text-red-400"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Déconnexion</span>
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <main className="pt-24 pb-12 px-4 md:px-8 max-w-7xl mx-auto">
+      <main className="pt-6 md:pt-8 pb-12 px-4 md:px-8 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {user && (
             <motion.div
