@@ -15,6 +15,9 @@ import {
   CheckCircle,
   Home,
   MessageSquare,
+  ChevronLeft,
+  ChevronRight,
+  CalendarDays,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
@@ -46,12 +49,34 @@ interface Reservation {
   };
 }
 
+interface Disponibilite {
+  id: string;
+  date: string; // ISO
+  statut: string; // DISPONIBLE | INDISPONIBLE | RESERVE
+}
+
 const statutLabels: Record<string, { label: string; color: string }> = {
   EN_ATTENTE: { label: "En attente", color: "bg-yellow-500/20 text-yellow-500 border border-yellow-500/20" },
   CONFIRMEE: { label: "Confirmé", color: "bg-green-500/20 text-green-500 border border-green-500/20" },
   TERMINEE: { label: "Terminé", color: "bg-blue-500/20 text-blue-500 border border-blue-500/20" },
   ANNULEE: { label: "Annulé", color: "bg-red-500/20 text-red-500 border border-red-500/20" },
 };
+
+const dispoStyles: Record<string, string> = {
+  DISPONIBLE: "bg-teal-400/20 text-teal-300 border border-teal-400/30",
+  INDISPONIBLE: "bg-red-500/15 text-red-400 border border-red-500/25",
+  RESERVE: "bg-yellow-500/15 text-yellow-400 border border-yellow-500/25",
+};
+
+const JOURS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+
+/** Clé locale YYYY-MM-DD sans décalage de fuseau horaire */
+function dateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export default function ClientDashboard() {
   const router = useRouter();
@@ -72,6 +97,13 @@ export default function ClientDashboard() {
   const [isSubmittingAvis, setIsSubmittingAvis] = useState(false);
   const [avisError, setAvisError] = useState("");
   const [avisSuccess, setAvisSuccess] = useState(false);
+
+  // Modal de disponibilités
+  const [dispoReservation, setDispoReservation] = useState<Reservation | null>(null);
+  const [disponibilites, setDisponibilites] = useState<Record<string, string>>({});
+  const [isLoadingDispo, setIsLoadingDispo] = useState(false);
+  const [dispoError, setDispoError] = useState("");
+  const [dispoMonth, setDispoMonth] = useState<Date>(new Date());
 
   useEffect(() => {
     async function loadDashboard() {
@@ -151,6 +183,48 @@ export default function ClientDashboard() {
     } finally {
       setIsSubmittingAvis(false);
     }
+  };
+
+  // ---- Disponibilités ----
+  const handleOpenDispo = async (reservation: Reservation) => {
+    setDispoReservation(reservation);
+    setDispoError("");
+    setDisponibilites({});
+    // Ouvrir le calendrier sur le mois de l'événement s'il est à venir, sinon le mois courant
+    const eventDate = new Date(reservation.dateEvenement);
+    const now = new Date();
+    setDispoMonth(eventDate > now ? new Date(eventDate.getFullYear(), eventDate.getMonth(), 1) : new Date(now.getFullYear(), now.getMonth(), 1));
+
+    setIsLoadingDispo(true);
+    try {
+      const data = await api.get<Disponibilite[]>(
+        `/disponibilites/prestataire/${reservation.prestataireId}`
+      );
+      const map: Record<string, string> = {};
+      data.forEach((d) => {
+        map[dateKey(new Date(d.date))] = d.statut;
+      });
+      setDisponibilites(map);
+    } catch (err) {
+      setDispoError(
+        err instanceof Error ? err.message : "Impossible de charger les disponibilités"
+      );
+    } finally {
+      setIsLoadingDispo(false);
+    }
+  };
+
+  const buildCalendarDays = (month: Date): (Date | null)[] => {
+    const year = month.getFullYear();
+    const m = month.getMonth();
+    const firstDay = new Date(year, m, 1);
+    const daysInMonth = new Date(year, m + 1, 0).getDate();
+    // Lundi = 0 ... Dimanche = 6
+    const offset = (firstDay.getDay() + 6) % 7;
+    const cells: (Date | null)[] = [];
+    for (let i = 0; i < offset; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, m, d));
+    return cells;
   };
 
   if (isLoading) {
@@ -342,6 +416,14 @@ export default function ClientDashboard() {
 
                     {/* Actions selon le statut */}
                     <div className="flex flex-wrap items-center gap-2 mt-3">
+                      <button
+                        onClick={() => handleOpenDispo(reservation)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-teal-400 border border-teal-400/20 rounded-lg hover:bg-teal-400/10 transition-colors"
+                      >
+                        <CalendarDays className="w-3 h-3" />
+                        Disponibilités
+                      </button>
+
                       {(reservation.statut === "EN_ATTENTE" ||
                         reservation.statut === "CONFIRMEE") && (
                         <button
@@ -377,6 +459,156 @@ export default function ClientDashboard() {
           </motion.div>
         </div>
       </main>
+
+      {/* Modal de disponibilités du prestataire */}
+      <AnimatePresence>
+        {dispoReservation && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center px-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDispoReservation(null)}
+            />
+
+            <motion.div
+              className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 md:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              transition={{ type: "spring", damping: 25 }}
+            >
+              <div className="flex justify-between items-center mb-1">
+                <h3 className="text-xl font-bold text-white">Disponibilités</h3>
+                <button
+                  className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                  onClick={() => setDispoReservation(null)}
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-400 mb-5">
+                {dispoReservation.prestataire.nomEntreprise} — {dispoReservation.prestataire.quartier}
+              </p>
+
+              {isLoadingDispo ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-8 h-8 border-4 border-teal-400/30 border-t-teal-400 rounded-full animate-spin" />
+                </div>
+              ) : dispoError ? (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {dispoError}
+                </div>
+              ) : (
+                <>
+                  {/* Navigation du mois */}
+                  <div className="flex items-center justify-between mb-4">
+                    <button
+                      onClick={() =>
+                        setDispoMonth(
+                          (m) => new Date(m.getFullYear(), m.getMonth() - 1, 1)
+                        )
+                      }
+                      className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-gray-400" />
+                    </button>
+                    <span className="text-sm font-semibold capitalize">
+                      {dispoMonth.toLocaleDateString("fr-FR", {
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </span>
+                    <button
+                      onClick={() =>
+                        setDispoMonth(
+                          (m) => new Date(m.getFullYear(), m.getMonth() + 1, 1)
+                        )
+                      }
+                      className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                    >
+                      <ChevronRight className="w-5 h-5 text-gray-400" />
+                    </button>
+                  </div>
+
+                  {/* Grille du calendrier */}
+                  <div className="grid grid-cols-7 gap-1 mb-1">
+                    {JOURS.map((j) => (
+                      <div
+                        key={j}
+                        className="text-center text-[11px] text-gray-500 font-medium py-1"
+                      >
+                        {j}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {buildCalendarDays(dispoMonth).map((day, i) => {
+                      if (!day) return <div key={`empty-${i}`} />;
+                      const key = dateKey(day);
+                      const statut = disponibilites[key];
+                      const isEventDay =
+                        key === dateKey(new Date(dispoReservation.dateEvenement));
+                      const isPast =
+                        day < new Date(new Date().setHours(0, 0, 0, 0));
+                      return (
+                        <div
+                          key={key}
+                          title={
+                            statut === "DISPONIBLE"
+                              ? "Disponible"
+                              : statut === "INDISPONIBLE"
+                              ? "Indisponible"
+                              : statut === "RESERVE"
+                              ? "Réservé"
+                              : "Non renseigné"
+                          }
+                          className={`relative aspect-square flex items-center justify-center rounded-lg text-xs transition-colors ${
+                            statut
+                              ? dispoStyles[statut] || "text-gray-500"
+                              : "text-gray-500 bg-white/[0.03]"
+                          } ${isPast ? "opacity-40" : ""} ${
+                            isEventDay ? "ring-2 ring-teal-400" : ""
+                          }`}
+                        >
+                          {day.getDate()}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Légende */}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-5 text-xs text-gray-400">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-3 h-3 rounded bg-teal-400/40 border border-teal-400/50" />
+                      Disponible
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-3 h-3 rounded bg-red-500/30 border border-red-500/40" />
+                      Indisponible
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-3 h-3 rounded bg-yellow-500/30 border border-yellow-500/40" />
+                      Réservé
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-3 h-3 rounded ring-2 ring-teal-400" />
+                      Votre événement
+                    </span>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Modal d'avis vérifié */}
       <AnimatePresence>
