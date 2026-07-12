@@ -49,12 +49,6 @@ interface Reservation {
   };
 }
 
-interface Disponibilite {
-  id: string;
-  date: string; // ISO
-  statut: string; // DISPONIBLE | INDISPONIBLE | RESERVE
-}
-
 const statutLabels: Record<string, { label: string; color: string }> = {
   EN_ATTENTE: { label: "En attente", color: "bg-yellow-500/20 text-yellow-500 border border-yellow-500/20" },
   CONFIRMEE: { label: "Confirmé", color: "bg-green-500/20 text-green-500 border border-green-500/20" },
@@ -62,11 +56,13 @@ const statutLabels: Record<string, { label: string; color: string }> = {
   ANNULEE: { label: "Annulé", color: "bg-red-500/20 text-red-500 border border-red-500/20" },
 };
 
+// Le backend ne renvoie que les EXCEPTIONS (modèle Indisponibilite + réservations
+// confirmées). Une date sans entrée est donc DISPONIBLE par défaut.
 const dispoStyles: Record<string, string> = {
-  DISPONIBLE: "bg-teal-400/20 text-teal-300 border border-teal-400/30",
   INDISPONIBLE: "bg-red-500/15 text-red-400 border border-red-500/25",
   RESERVE: "bg-yellow-500/15 text-yellow-400 border border-yellow-500/25",
 };
+const dispoDefaut = "bg-teal-400/10 text-teal-300/80 border border-teal-400/15";
 
 const JOURS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
@@ -197,13 +193,31 @@ export default function ClientDashboard() {
 
     setIsLoadingDispo(true);
     try {
-      const data = await api.get<Disponibilite[]>(
+      const data = await api.get<unknown>(
         `/disponibilites/prestataire/${reservation.prestataireId}`
       );
+
+      // Format de l'API : { datesIndisponibles: ["YYYY-MM-DD", ...], datesReservees?: [...] }
+      // - datesIndisponibles = liste fusionnée (blocages manuels + réservations confirmées)
+      // - datesReservees = sous-ensemble réservé (si le backend le renvoie), affiché en jaune
       const map: Record<string, string> = {};
-      data.forEach((d) => {
-        map[dateKey(new Date(d.date))] = d.statut;
-      });
+      if (data && typeof data === "object" && !Array.isArray(data)) {
+        const obj = data as { datesIndisponibles?: string[]; datesReservees?: string[] };
+        (obj.datesIndisponibles || []).forEach((jour) => {
+          if (typeof jour === "string") map[jour] = "INDISPONIBLE";
+        });
+        (obj.datesReservees || []).forEach((jour) => {
+          if (typeof jour === "string") map[jour] = "RESERVE";
+        });
+      } else if (Array.isArray(data)) {
+        // Tolérance : ancien format tableau d'objets [{ date, statut }]
+        (data as { date?: string; statut?: string }[]).forEach((d) => {
+          if (!d?.date) return;
+          const dateObj = new Date(d.date);
+          if (isNaN(dateObj.getTime())) return;
+          map[dateKey(dateObj)] = d.statut || "INDISPONIBLE";
+        });
+      }
       setDisponibilites(map);
     } catch (err) {
       setDispoError(
@@ -562,18 +576,14 @@ export default function ClientDashboard() {
                         <div
                           key={key}
                           title={
-                            statut === "DISPONIBLE"
-                              ? "Disponible"
-                              : statut === "INDISPONIBLE"
+                            statut === "INDISPONIBLE"
                               ? "Indisponible"
                               : statut === "RESERVE"
                               ? "Réservé"
-                              : "Non renseigné"
+                              : "Disponible"
                           }
                           className={`relative aspect-square flex items-center justify-center rounded-lg text-xs transition-colors ${
-                            statut
-                              ? dispoStyles[statut] || "text-gray-500"
-                              : "text-gray-500 bg-white/[0.03]"
+                            statut ? dispoStyles[statut] || dispoDefaut : dispoDefaut
                           } ${isPast ? "opacity-40" : ""} ${
                             isEventDay ? "ring-2 ring-teal-400" : ""
                           }`}
@@ -587,7 +597,7 @@ export default function ClientDashboard() {
                   {/* Légende */}
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-5 text-xs text-gray-400">
                     <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-3 rounded bg-teal-400/40 border border-teal-400/50" />
+                      <span className="w-3 h-3 rounded bg-teal-400/20 border border-teal-400/30" />
                       Disponible
                     </span>
                     <span className="flex items-center gap-1.5">

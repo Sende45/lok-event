@@ -24,6 +24,46 @@ const TRANSITIONS_PRESTATAIRE: Record<string, string[]> = {
   ANNULEE: [],
 };
 
+/** Bornes UTC du jour d'une date (pour comparer des dates de journée entière) */
+function bornesJourUTC(date: Date): { debut: Date; fin: Date } {
+  const debut = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
+  const fin = new Date(debut);
+  fin.setUTCDate(fin.getUTCDate() + 1);
+  return { debut, fin };
+}
+
+/**
+ * Vérifie si une date est prise pour un prestataire :
+ * - bloquée manuellement (Indisponibilite)
+ * - ou occupée par une réservation CONFIRMEE (en excluant éventuellement
+ *   une réservation donnée, utile lors de la confirmation elle-même)
+ */
+async function dateEstPrise(
+  prestataireId: string,
+  date: Date,
+  excludeReservationId?: string
+): Promise<boolean> {
+  const { debut, fin } = bornesJourUTC(date);
+
+  const [dateBloquee, dateConfirmee] = await Promise.all([
+    prisma.indisponibilite.findFirst({
+      where: { prestataireId, date: { gte: debut, lt: fin } },
+    }),
+    prisma.reservation.findFirst({
+      where: {
+        prestataireId,
+        statut: "CONFIRMEE",
+        dateEvenement: { gte: debut, lt: fin },
+        ...(excludeReservationId ? { id: { not: excludeReservationId } } : {}),
+      },
+    }),
+  ]);
+
+  return Boolean(dateBloquee || dateConfirmee);
+}
+
 export const creerReservation = async (req: AuthRequest, res: Response) => {
   try {
     const {
@@ -56,6 +96,25 @@ export const creerReservation = async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Validation des champs numériques optionnels (éviter NaN -> erreur Prisma 500)
+    let nombrePersonnesInt: number | undefined;
+    if (nombrePersonnes !== undefined && nombrePersonnes !== null && nombrePersonnes !== "") {
+      nombrePersonnesInt = parseInt(nombrePersonnes, 10);
+      if (isNaN(nombrePersonnesInt) || nombrePersonnesInt < 1) {
+        res.status(400).json({ message: "Nombre de personnes invalide" });
+        return;
+      }
+    }
+
+    let budgetFloat: number | undefined;
+    if (budget !== undefined && budget !== null && budget !== "") {
+      budgetFloat = parseFloat(budget);
+      if (isNaN(budgetFloat) || budgetFloat < 0) {
+        res.status(400).json({ message: "Budget invalide" });
+        return;
+      }
+    }
+
     // Le prestataire doit exister et être actif
     const prestataire = await prisma.prestataire.findUnique({
       where: { id: prestataireId },
@@ -74,24 +133,7 @@ export const creerReservation = async (req: AuthRequest, res: Response) => {
 
     // Vérification de disponibilité : date bloquée par le prestataire
     // ou déjà prise par une réservation confirmée
-    const jourDebut = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-    const jourFin = new Date(jourDebut);
-    jourFin.setUTCDate(jourFin.getUTCDate() + 1);
-
-    const [dateBloquee, dateConfirmee] = await Promise.all([
-      prisma.indisponibilite.findFirst({
-        where: { prestataireId, date: { gte: jourDebut, lt: jourFin } },
-      }),
-      prisma.reservation.findFirst({
-        where: {
-          prestataireId,
-          statut: "CONFIRMEE",
-          dateEvenement: { gte: jourDebut, lt: jourFin },
-        },
-      }),
-    ]);
-
-    if (dateBloquee || dateConfirmee) {
+    if (await dateEstPrise(prestataireId, date)) {
       res.status(400).json({
         message:
           "Ce prestataire n'est pas disponible à cette date. Choisissez une autre date ou contactez-le par message.",
@@ -106,9 +148,9 @@ export const creerReservation = async (req: AuthRequest, res: Response) => {
         dateEvenement: date,
         lieuEvenement,
         typeEvenement,
-        nombrePersonnes: nombrePersonnes ? parseInt(nombrePersonnes) : undefined,
+        nombrePersonnes: nombrePersonnesInt,
         message: message || undefined,
-        budget: budget ? parseFloat(budget) : undefined,
+        budget: budgetFloat,
       },
       include: {
         prestataire: { select: { nomEntreprise: true } },
@@ -244,22 +286,51 @@ export const updateStatutReservation = async (req: AuthRequest, res: Response) =
       return;
     }
 
+    // ANTI DOUBLE-BOOKING : au moment de CONFIRMER, on re-vérifie que la date
+    // n'a pas été prise entre-temps (autre réservation confirmée le même jour,
+    // ou date bloquée manuellement par le prestataire après la demande).
+    if (statut === "CONFIRMEE") {
+      const prise = await dateEstPrise(
+        reservation.prestataireId,
+        reservation.dateEvenement,
+        reservation.id
+      );
+      if (prise) {
+        res.status(400).json({
+          message:
+            "Cette date n'est plus disponible : une autre réservation confirmée ou une indisponibilité existe déjà ce jour-là.",
+        });
+        return;
+      }
+    }
+
+    const statutPrecedent = reservation.statut;
+
     const updated = await prisma.reservation.update({
       where: { id: reservationId },
       data: { statut },
       include: { prestataire: { select: { nomEntreprise: true } } },
     });
 
-    // Prévenir le client du changement de statut
+    // Prévenir le client du changement de statut.
+    // Le message d'annulation dépend du statut précédent : une demande EN_ATTENTE
+    // est "déclinée", une réservation CONFIRMEE est "annulée par le prestataire".
+    const dateFr = updated.dateEvenement.toLocaleDateString("fr-FR");
     const messagesStatut: Record<string, { titre: string; texte: string }> = {
       CONFIRMEE: {
         titre: "Réservation confirmée ✅",
-        texte: `${updated.prestataire.nomEntreprise} a accepté votre demande de ${updated.typeEvenement} du ${updated.dateEvenement.toLocaleDateString("fr-FR")}`,
+        texte: `${updated.prestataire.nomEntreprise} a accepté votre demande de ${updated.typeEvenement} du ${dateFr}`,
       },
-      ANNULEE: {
-        titre: "Réservation refusée",
-        texte: `${updated.prestataire.nomEntreprise} a décliné votre demande de ${updated.typeEvenement} du ${updated.dateEvenement.toLocaleDateString("fr-FR")}`,
-      },
+      ANNULEE:
+        statutPrecedent === "CONFIRMEE"
+          ? {
+              titre: "Réservation annulée par le prestataire",
+              texte: `${updated.prestataire.nomEntreprise} a dû annuler votre ${updated.typeEvenement} confirmé du ${dateFr}. Contactez-le par message pour plus de détails.`,
+            }
+          : {
+              titre: "Réservation refusée",
+              texte: `${updated.prestataire.nomEntreprise} a décliné votre demande de ${updated.typeEvenement} du ${dateFr}`,
+            },
       TERMINEE: {
         titre: "Prestation terminée 🎉",
         texte: `Votre ${updated.typeEvenement} avec ${updated.prestataire.nomEntreprise} est marqué terminé. Vous pouvez maintenant laisser un avis !`,

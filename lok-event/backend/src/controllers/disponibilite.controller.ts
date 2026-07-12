@@ -10,6 +10,12 @@ function jourUTC(input: string | Date): Date | null {
 }
 
 // PUBLIC — dates indisponibles d'un prestataire (blocages manuels + réservations confirmées)
+// Réponse :
+// - datesIndisponibles : liste FUSIONNÉE (blocages + réservées) — format historique,
+//   toujours renvoyée telle quelle pour ne pas casser la fiche détail prestataire.
+// - datesReservees : sous-ensemble occupé par une réservation CONFIRMEE — permet au
+//   calendrier du dashboard client de distinguer "bloqué" (rouge) de "réservé" (jaune).
+//   Aucune info client ne fuite : uniquement des dates.
 export const getDisponibilitesPubliques = async (req: Request, res: Response) => {
   try {
     const prestataireId = req.params.prestataireId as string;
@@ -32,12 +38,18 @@ export const getDisponibilitesPubliques = async (req: Request, res: Response) =>
 
     // Fusion + dédoublonnage au format YYYY-MM-DD
     const dates = new Set<string>();
+    const reservees = new Set<string>();
     blocages.forEach((b) => dates.add(b.date.toISOString().split("T")[0]));
-    reservationsConfirmees.forEach((r) =>
-      dates.add(r.dateEvenement.toISOString().split("T")[0])
-    );
+    reservationsConfirmees.forEach((r) => {
+      const jour = r.dateEvenement.toISOString().split("T")[0];
+      dates.add(jour);
+      reservees.add(jour);
+    });
 
-    res.json({ datesIndisponibles: [...dates].sort() });
+    res.json({
+      datesIndisponibles: [...dates].sort(),
+      datesReservees: [...reservees].sort(),
+    });
   } catch (error) {
     console.error("Erreur disponibilités publiques:", error);
     res.status(500).json({ message: "Erreur serveur", error });
