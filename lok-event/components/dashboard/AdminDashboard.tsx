@@ -506,8 +506,8 @@ export default function AdminDashboard() {
                       tickFormatter={formatFCFACompact}
                     />
                     <Tooltip
-                      formatter={(value: number, name: string) => [
-                        `${value.toLocaleString("fr-FR")} FCFA`,
+                      formatter={(value, name) => [
+                        `${Number(value ?? 0).toLocaleString("fr-FR")} FCFA`,
                         name === "revenus" ? "Revenus Premium" : "Volume d'affaires",
                       ]}
                       contentStyle={{
@@ -519,7 +519,7 @@ export default function AdminDashboard() {
                       }}
                     />
                     <Legend
-                      formatter={(value: string) =>
+                      formatter={(value) =>
                         value === "revenus" ? "Revenus Premium" : "Volume d'affaires"
                       }
                       wrapperStyle={{ fontSize: "12px" }}
