@@ -20,6 +20,26 @@ enum StatutReservation {
   TERMINEE
 }
 
+enum PackPremium {
+  MENSUEL
+  TRIMESTRIEL
+  ANNUEL
+}
+
+enum StatutAbonnement {
+  EN_ATTENTE
+  ACTIF
+  EXPIRE
+  REFUSE
+}
+
+enum MoyenPaiement {
+  WAVE
+  ORANGE_MONEY
+  MTN
+  ESPECES
+}
+
 model User {
   id           String        @id @default(cuid())
   nom          String
@@ -29,6 +49,8 @@ model User {
   telephone    String?
   role         Role          @default(CLIENT)
   avatar       String?
+  estPremium   Boolean       @default(false)
+  premiumJusquau DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   prestataire  Prestataire?
@@ -36,10 +58,30 @@ model User {
   avis         Avis[]
   favoris      Favori[]
   notifications Notification[]
+  abonnements  Abonnement[]
   conversationsClient Conversation[] @relation("ConversationsClient")
   messagesEnvoyes     Message[]      @relation("MessagesEnvoyes")
 
   @@map("users")
+}
+
+model Abonnement {
+  id                String           @id @default(cuid())
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pack              PackPremium
+  montant           Float // en FCFA
+  statut            StatutAbonnement @default(EN_ATTENTE)
+  moyenPaiement     MoyenPaiement?
+  referencePaiement String? // ID de transaction mobile money fourni par le client
+  debutLe           DateTime?
+  finLe             DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([statut])
+  @@map("abonnements")
 }
 
 model Conversation {
