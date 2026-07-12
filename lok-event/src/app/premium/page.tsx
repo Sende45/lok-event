@@ -199,11 +199,11 @@ export default function PremiumPage() {
             </span>
           </Link>
           <Link
-            href="/dashboard"
+            href="/"
             className="flex items-center gap-2 text-sm text-gray-400 hover:text-teal-400 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Retour
+            Retour à l'accueil
           </Link>
         </div>
       </header>
