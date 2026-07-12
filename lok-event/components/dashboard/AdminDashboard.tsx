@@ -3,20 +3,35 @@
 import {
   BarChart3, Users, Briefcase, Calendar, LogOut, Menu, X, DollarSign,
   Check, AlertCircle, Tag as TagIcon, FolderTree, Plus, Edit2, Trash2, Power,
+  RefreshCw, Crown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis,
+  Tooltip, Legend, CartesianGrid,
+} from "recharts";
 import { api } from "@/lib/api";
+
+interface EvolutionMois {
+  mois: string;
+  revenus: number;
+  volumeAffaires: number;
+}
 
 interface Stats {
   totalUsers: number;
   totalProviders: number;
   totalBookings: number;
-  totalRevenue: number;
+  totalRevenue: number;      // revenus réels : abonnements Premium encaissés
+  volumeAffaires: number;    // GMV : budgets des prestations terminées
+  totalPremium: number;      // membres Premium actifs
+  abonnementsEnAttente: number;
   pendingProviders: number;
   todayBookings: number;
+  evolutionMensuelle: EvolutionMois[];
 }
 
 interface RecentBooking {
@@ -57,6 +72,7 @@ interface UserRow {
   prenom: string;
   email: string;
   role: string;
+  estPremium?: boolean;
   createdAt: string;
 }
 
@@ -100,6 +116,13 @@ const tabs = [
   { id: "tags", label: "Tags", icon: TagIcon },
 ];
 
+/** Format compact des montants FCFA pour les axes du graphique (1,5M / 250k) */
+function formatFCFACompact(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })}M`;
+  if (value >= 1_000) return `${(value / 1_000).toLocaleString("fr-FR", { maximumFractionDigits: 0 })}k`;
+  return value.toString();
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -109,6 +132,8 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
   const [pendingProviders, setPendingProviders] = useState<PendingProvider[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   // Providers
   const [providers, setProviders] = useState<ProviderRow[]>([]);
@@ -128,6 +153,28 @@ export default function AdminDashboard() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Rechargement des données "vivantes" (stats, réservations récentes,
+  // prestataires en attente) — utilisé au montage, au clic sur Actualiser
+  // et par l'auto-refresh
+  const loadLiveData = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const [statsData, bookingsData, pendingData] = await Promise.all([
+        api.get<Stats>("/admin/stats"),
+        api.get<RecentBooking[]>("/admin/bookings/recent"),
+        api.get<PendingProvider[]>("/admin/providers/pending"),
+      ]);
+      setStats(statsData);
+      setRecentBookings(bookingsData);
+      setPendingProviders(pendingData);
+      setLastRefresh(new Date());
+    } catch (err) {
+      console.error("Erreur rafraîchissement stats:", err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     async function loadAll() {
@@ -149,6 +196,7 @@ export default function AdminDashboard() {
         setUsers(usersData.users);
         setCategories(catsData);
         setTagsGrouped(tagsData);
+        setLastRefresh(new Date());
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erreur de chargement");
       } finally {
@@ -157,6 +205,13 @@ export default function AdminDashboard() {
     }
     loadAll();
   }, []);
+
+  // Auto-refresh des stats toutes les 60 secondes (uniquement sur l'onglet Stats)
+  useEffect(() => {
+    if (activeTab !== "stats") return;
+    const interval = setInterval(loadLiveData, 60_000);
+    return () => clearInterval(interval);
+  }, [activeTab, loadLiveData]);
 
   const handleLogout = () => {
     localStorage.removeItem("lokevent_token");
@@ -361,13 +416,33 @@ export default function AdminDashboard() {
       <main className="pt-24 pb-12 px-4 md:px-8 max-w-7xl mx-auto">
         {activeTab === "stats" && stats && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            {/* Barre d'actualisation */}
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs text-gray-500">
+                {lastRefresh &&
+                  `Actualisé à ${lastRefresh.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} · auto toutes les 60s`}
+              </p>
+              <button
+                onClick={loadLiveData}
+                disabled={isRefreshing}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-300 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+                Actualiser
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-400 uppercase tracking-wider">Utilisateurs</span>
                   <Users className="w-5 h-5 text-teal-400" />
                 </div>
                 <p className="text-2xl font-bold mt-2">{stats.totalUsers}</p>
+                <p className="text-xs text-yellow-400 flex items-center gap-1">
+                  <Crown className="w-3 h-3" />
+                  {stats.totalPremium} Premium
+                </p>
               </div>
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
                 <div className="flex items-center justify-between">
@@ -387,10 +462,79 @@ export default function AdminDashboard() {
               </div>
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-400 uppercase tracking-wider">Chiffre d'affaires</span>
+                  <span className="text-xs text-gray-400 uppercase tracking-wider">Revenus (Premium)</span>
                   <DollarSign className="w-5 h-5 text-green-400" />
                 </div>
-                <p className="text-2xl font-bold mt-2">{stats.totalRevenue.toLocaleString()} FCFA</p>
+                <p className="text-2xl font-bold mt-2">{stats.totalRevenue.toLocaleString("fr-FR")} FCFA</p>
+                <p className="text-xs text-gray-400">
+                  Volume d'affaires : {formatFCFACompact(stats.volumeAffaires)} FCFA
+                </p>
+                {stats.abonnementsEnAttente > 0 && (
+                  <p className="text-xs text-yellow-400 mt-0.5">
+                    {stats.abonnementsEnAttente} abonnement(s) à valider
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Évolution sur 6 mois : revenus Premium (barres) vs volume d'affaires (courbe) */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
+              <h2 className="text-lg font-bold mb-1">Évolution sur 6 mois</h2>
+              <p className="text-xs text-gray-500 mb-4">
+                Revenus = abonnements Premium encaissés · Volume d'affaires = budgets des prestations terminées (argent des prestataires, pas de LOKEVENT)
+              </p>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={stats.evolutionMensuelle} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                    <XAxis dataKey="mois" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis
+                      yAxisId="revenus"
+                      stroke="#2dd4bf"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={formatFCFACompact}
+                    />
+                    <YAxis
+                      yAxisId="volume"
+                      orientation="right"
+                      stroke="#a78bfa"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={formatFCFACompact}
+                    />
+                    <Tooltip
+                      formatter={(value: number, name: string) => [
+                        `${value.toLocaleString("fr-FR")} FCFA`,
+                        name === "revenus" ? "Revenus Premium" : "Volume d'affaires",
+                      ]}
+                      contentStyle={{
+                        backgroundColor: "#111",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: "0.75rem",
+                        color: "#fff",
+                        fontSize: "12px",
+                      }}
+                    />
+                    <Legend
+                      formatter={(value: string) =>
+                        value === "revenus" ? "Revenus Premium" : "Volume d'affaires"
+                      }
+                      wrapperStyle={{ fontSize: "12px" }}
+                    />
+                    <Bar yAxisId="revenus" dataKey="revenus" fill="#2dd4bf" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                    <Line
+                      yAxisId="volume"
+                      type="monotone"
+                      dataKey="volumeAffaires"
+                      stroke="#a78bfa"
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: "#a78bfa" }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
@@ -512,7 +656,12 @@ export default function AdminDashboard() {
                 <tbody>
                   {users.map((u) => (
                     <tr key={u.id} className="border-t border-white/5">
-                      <td className="px-4 py-3 font-medium">{u.prenom} {u.nom}</td>
+                      <td className="px-4 py-3 font-medium">
+                        <span className="flex items-center gap-1.5">
+                          {u.prenom} {u.nom}
+                          {u.estPremium && <Crown className="w-3.5 h-3.5 text-yellow-400" />}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-gray-400">{u.email}</td>
                       <td className="px-4 py-3">
                         <span className="px-2 py-0.5 rounded-full text-xs bg-white/10 text-gray-300">{u.role}</span>

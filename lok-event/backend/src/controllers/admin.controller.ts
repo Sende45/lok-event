@@ -1,15 +1,51 @@
+// backend/src/controllers/admin.controller.ts
 import { Response } from "express";
 import { prisma } from "../lib/prisma";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// STATS
+// Distinction importante :
+// - totalRevenue   = VRAIS revenus LOKEVENT : somme des abonnements Premium
+//                    validés (ACTIF ou EXPIRE = argent réellement encaissé).
+// - volumeAffaires = GMV : somme des budgets des prestations TERMINEES.
+//                    C'est l'argent qui transite vers les prestataires,
+//                    pas le chiffre d'affaires de la plateforme.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Renvoie les 6 derniers mois sous forme de clés "YYYY-MM" + labels "juil. 26" */
+function derniersMois(nb: number): { cle: string; label: string; debut: Date }[] {
+  const mois: { cle: string; label: string; debut: Date }[] = [];
+  const maintenant = new Date();
+  for (let i = nb - 1; i >= 0; i--) {
+    const d = new Date(maintenant.getFullYear(), maintenant.getMonth() - i, 1);
+    mois.push({
+      cle: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      label: d.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
+      debut: d,
+    });
+  }
+  return mois;
+}
+
+function cleMois(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
 export const getStats = async (req: any, res: Response) => {
   try {
+    const mois = derniersMois(6);
+    const debutPeriode = mois[0].debut;
+
     const [
       totalUsers,
       totalProviders,
       totalBookings,
       pendingProviders,
       todayBookings,
-      reservationsAvecBudget,
+      totalPremium,
+      abonnementsEnAttente,
+      reservationsTerminees,
+      abonnementsValides,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.prestataire.count(),
@@ -22,26 +58,74 @@ export const getStats = async (req: any, res: Response) => {
           },
         },
       }),
+      // Membres Premium actuellement actifs
+      prisma.user.count({
+        where: {
+          estPremium: true,
+          OR: [{ premiumJusquau: null }, { premiumJusquau: { gt: new Date() } }],
+        },
+      }),
+      // Demandes Premium à valider (à afficher dans le dashboard admin)
+      prisma.abonnement.count({ where: { statut: "EN_ATTENTE" } }),
+      // Volume d'affaires : prestations terminées avec budget renseigné
       prisma.reservation.findMany({
         where: { statut: "TERMINEE", budget: { not: null } },
-        select: { budget: true },
+        select: { budget: true, updatedAt: true },
+      }),
+      // Revenus réels : abonnements Premium validés (ACTIF ou déjà EXPIRE,
+      // dans les deux cas l'argent a été encaissé)
+      prisma.abonnement.findMany({
+        where: { statut: { in: ["ACTIF", "EXPIRE"] } },
+        select: { montant: true, debutLe: true, createdAt: true },
       }),
     ]);
 
-    const totalRevenue = reservationsAvecBudget.reduce(
+    // Totaux
+    const volumeAffaires = reservationsTerminees.reduce(
       (sum, r) => sum + (r.budget || 0),
       0
     );
+    const totalRevenue = abonnementsValides.reduce((sum, a) => sum + a.montant, 0);
+
+    // Évolution mensuelle sur 6 mois (revenus Premium + volume d'affaires)
+    const revenusParCle = new Map<string, number>();
+    const volumeParCle = new Map<string, number>();
+
+    for (const a of abonnementsValides) {
+      const date = a.debutLe || a.createdAt;
+      if (date >= debutPeriode) {
+        const cle = cleMois(date);
+        revenusParCle.set(cle, (revenusParCle.get(cle) || 0) + a.montant);
+      }
+    }
+    for (const r of reservationsTerminees) {
+      // updatedAt ≈ date à laquelle la prestation est passée TERMINEE
+      if (r.updatedAt >= debutPeriode) {
+        const cle = cleMois(r.updatedAt);
+        volumeParCle.set(cle, (volumeParCle.get(cle) || 0) + (r.budget || 0));
+      }
+    }
+
+    const evolutionMensuelle = mois.map((m) => ({
+      mois: m.label,
+      revenus: revenusParCle.get(m.cle) || 0,
+      volumeAffaires: volumeParCle.get(m.cle) || 0,
+    }));
 
     res.json({
       totalUsers,
       totalProviders,
       totalBookings,
       totalRevenue,
+      volumeAffaires,
+      totalPremium,
+      abonnementsEnAttente,
       pendingProviders,
       todayBookings,
+      evolutionMensuelle,
     });
   } catch (error) {
+    console.error("Erreur stats admin:", error);
     res.status(500).json({ message: "Erreur serveur", error });
   }
 };
@@ -186,6 +270,7 @@ export const getAllUsers = async (req: any, res: Response) => {
           email: true,
           telephone: true,
           role: true,
+          estPremium: true,
           createdAt: true,
         },
         orderBy: { createdAt: "desc" },

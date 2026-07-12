@@ -1,5 +1,6 @@
 // backend/src/controllers/premium.controller.ts
 import { Request, Response } from "express";
+import { StatutAbonnement } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { emitToPremium, rafraichirRoomPremium, premiumEstActif } from "../lib/socket";
 import { sendNotification } from "./notification.controller";
@@ -180,7 +181,20 @@ export const getDemandes = async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const statut = (req.query.statut as string) || undefined;
+    // Validation + typage du filtre contre l'enum Prisma (sinon TS2322 :
+    // un `string` quelconque n'est pas assignable à StatutAbonnement)
+    const statutParam = req.query.statut as string | undefined;
+    let statut: StatutAbonnement | undefined;
+    if (statutParam) {
+      if (!Object.values(StatutAbonnement).includes(statutParam as StatutAbonnement)) {
+        res.status(400).json({
+          message: `Statut invalide. Valeurs acceptées : ${Object.values(StatutAbonnement).join(", ")}`,
+        });
+        return;
+      }
+      statut = statutParam as StatutAbonnement;
+    }
+
     const demandes = await prisma.abonnement.findMany({
       where: statut ? { statut } : {},
       include: {
