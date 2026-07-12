@@ -18,8 +18,8 @@ interface AuthRequest extends Request {
 // ─────────────────────────────────────────────────────────────────────────────
 const PACKS: Record<string, { montant: number; dureeMois: number; label: string }> = {
   MENSUEL: { montant: 25000, dureeMois: 1, label: "Pack Mensuel" },
-  TRIMESTRIEL: { montant: 45000, dureeMois: 3, label: "Pack Trimestriel" },
-  ANNUEL: { montant: 60000, dureeMois: 12, label: "Pack Annuel" },
+  TRIMESTRIEL: { montant: 60000, dureeMois: 3, label: "Pack Trimestriel" },
+  ANNUEL: { montant: 240000, dureeMois: 12, label: "Pack Annuel" },
 };
 
 const MOYENS_PAIEMENT = ["WAVE", "ORANGE_MONEY", "MTN", "ESPECES"];

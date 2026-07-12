@@ -43,8 +43,8 @@ const MOYENS: { code: string; label: string }[] = [
 // (doit rester aligné avec PACKS dans premium.controller.ts)
 const PACKS_DEFAUT: Pack[] = [
   { code: "MENSUEL", label: "Pack Mensuel", montant: 25000, dureeMois: 1 },
-  { code: "TRIMESTRIEL", label: "Pack Trimestriel", montant: 45000, dureeMois: 3 },
-  { code: "ANNUEL", label: "Pack Annuel", montant: 60000, dureeMois: 12 },
+  { code: "TRIMESTRIEL", label: "Pack Trimestriel", montant: 60000, dureeMois: 3 },
+  { code: "ANNUEL", label: "Pack Annuel", montant: 240000, dureeMois: 12 },
 ];
 
 const AVANTAGES = [
