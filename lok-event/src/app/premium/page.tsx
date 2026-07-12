@@ -2,7 +2,8 @@
 
 // frontend/src/app/premium/page.tsx
 // Page de souscription LOKEVENT Premium.
-// ⚠️ Remplace les numéros mobile money dans NUMEROS_PAIEMENT par tes vrais numéros.
+// Les numéros mobile money et le nom de compte sont configurés depuis le
+// dashboard admin (onglet Premium → Numéros de paiement) et chargés via l'API.
 
 import {
   Crown,
@@ -36,6 +37,14 @@ const MOYENS: { code: string; label: string }[] = [
   { code: "WAVE", label: "Wave" },
   { code: "ORANGE_MONEY", label: "Orange Money" },
   { code: "MTN", label: "MTN MoMo" },
+];
+
+// Secours si GET /premium/packs échoue : la page reste utilisable
+// (doit rester aligné avec PACKS dans premium.controller.ts)
+const PACKS_DEFAUT: Pack[] = [
+  { code: "MENSUEL", label: "Pack Mensuel", montant: 25000, dureeMois: 1 },
+  { code: "TRIMESTRIEL", label: "Pack Trimestriel", montant: 45000, dureeMois: 3 },
+  { code: "ANNUEL", label: "Pack Annuel", montant: 60000, dureeMois: 12 },
 ];
 
 const AVANTAGES = [
@@ -108,9 +117,10 @@ export default function PremiumPage() {
     async function load() {
       try {
         const packsData = await api.get<Pack[]>("/premium/packs");
-        setPacks(packsData);
+        setPacks(packsData && packsData.length > 0 ? packsData : PACKS_DEFAUT);
       } catch (err) {
         console.error("Erreur chargement packs:", err);
+        setPacks(PACKS_DEFAUT);
       }
       try {
         const params = await api.get<{ numeros?: Record<string, string>; nomCompte?: string }>(
