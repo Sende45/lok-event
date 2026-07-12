@@ -166,6 +166,17 @@ export default function AdminDashboard() {
   const [demandes, setDemandes] = useState<DemandeAbonnement[]>([]);
   const [filtreAbo, setFiltreAbo] = useState<string>("EN_ATTENTE");
 
+  // Paramètres de paiement mobile money
+  const [paramsPaiement, setParamsPaiement] = useState<{
+    numeros: Record<string, string>;
+    nomCompte: string;
+  }>({
+    numeros: { WAVE: "", ORANGE_MONEY: "", MTN: "" },
+    nomCompte: "LOKEVENT",
+  });
+  const [isSavingParams, setIsSavingParams] = useState(false);
+  const [paramsSaved, setParamsSaved] = useState(false);
+
   // Categories
   const [categories, setCategories] = useState<Categorie[]>([]);
   const [catForm, setCatForm] = useState({ nom: "", slug: "", description: "", icone: "", couleur: "" });
@@ -223,6 +234,20 @@ export default function AdminDashboard() {
         setCategories(catsData);
         setTagsGrouped(tagsData);
         setDemandes(demandesData);
+        // Paramètres de paiement (non bloquant si la route n'existe pas encore)
+        try {
+          const params = await api.get<{ numeros?: Record<string, string>; nomCompte?: string }>(
+            "/parametres/paiement"
+          );
+          if (params) {
+            setParamsPaiement({
+              numeros: { WAVE: "", ORANGE_MONEY: "", MTN: "", ...(params.numeros || {}) },
+              nomCompte: params.nomCompte || "LOKEVENT",
+            });
+          }
+        } catch {
+          /* silencieux */
+        }
         setLastRefresh(new Date());
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erreur de chargement");
@@ -287,6 +312,20 @@ export default function AdminDashboard() {
       setDemandes((prev) => prev.map((d) => (d.id === id ? { ...d, statut: "REFUSE" } : d)));
     } catch (err) {
       alert(err instanceof Error ? err.message : "Erreur lors du refus");
+    }
+  };
+
+  const handleSaveParamsPaiement = async () => {
+    setIsSavingParams(true);
+    setParamsSaved(false);
+    try {
+      await api.put("/parametres/paiement", paramsPaiement);
+      setParamsSaved(true);
+      setTimeout(() => setParamsSaved(false), 2500);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur d'enregistrement des paramètres");
+    } finally {
+      setIsSavingParams(false);
     }
   };
 
@@ -757,6 +796,66 @@ export default function AdminDashboard() {
                     )}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Paramètres de paiement mobile money */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
+              <h3 className="font-semibold mb-1">Numéros de paiement mobile money</h3>
+              <p className="text-xs text-gray-500 mb-4">
+                Ces numéros sont affichés aux utilisateurs sur la page /premium selon
+                l'opérateur choisi.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {(["WAVE", "ORANGE_MONEY", "MTN"] as const).map((op) => (
+                  <div key={op}>
+                    <label className="block text-xs text-gray-400 mb-1.5">
+                      {op === "ORANGE_MONEY" ? "Orange Money" : op === "MTN" ? "MTN MoMo" : "Wave"}
+                    </label>
+                    <input
+                      value={paramsPaiement.numeros[op] || ""}
+                      onChange={(e) =>
+                        setParamsPaiement((prev) => ({
+                          ...prev,
+                          numeros: { ...prev.numeros, [op]: e.target.value },
+                        }))
+                      }
+                      placeholder="+225 XX XX XX XX XX"
+                      maxLength={30}
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none"
+                    />
+                  </div>
+                ))}
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5">
+                    Nom du compte (affiché sous le numéro)
+                  </label>
+                  <input
+                    value={paramsPaiement.nomCompte}
+                    onChange={(e) =>
+                      setParamsPaiement((prev) => ({ ...prev, nomCompte: e.target.value }))
+                    }
+                    placeholder="LOKEVENT"
+                    maxLength={60}
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-3 mt-4">
+                <button
+                  onClick={handleSaveParamsPaiement}
+                  disabled={isSavingParams}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-400 text-black rounded-lg font-medium hover:bg-teal-300 transition-colors disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4" />
+                  {isSavingParams ? "Enregistrement..." : "Enregistrer"}
+                </button>
+                {paramsSaved && (
+                  <span className="text-xs text-teal-400 flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" />
+                    Numéros mis à jour
+                  </span>
+                )}
               </div>
             </div>
 

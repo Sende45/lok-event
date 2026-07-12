@@ -24,8 +24,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 
-// ⚠️ TES NUMÉROS DE RÉCEPTION MOBILE MONEY — à remplacer
-const NUMEROS_PAIEMENT: Record<string, string> = {
+// Valeurs par défaut, remplacées au chargement par les numéros configurés
+// dans le dashboard admin (onglet Premium → Paramètres de paiement)
+const NUMEROS_DEFAUT: Record<string, string> = {
   WAVE: "+225 07 00 00 00 00",
   ORANGE_MONEY: "+225 07 00 00 00 00",
   MTN: "+225 05 00 00 00 00",
@@ -90,6 +91,11 @@ export default function PremiumPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [nonConnecte, setNonConnecte] = useState(false);
 
+  // Numéros de paiement configurés par l'admin
+  const [numerosPaiement, setNumerosPaiement] =
+    useState<Record<string, string>>(NUMEROS_DEFAUT);
+  const [nomCompte, setNomCompte] = useState("LOKEVENT");
+
   // Formulaire
   const [packChoisi, setPackChoisi] = useState<string>("TRIMESTRIEL");
   const [moyenPaiement, setMoyenPaiement] = useState<string>("WAVE");
@@ -105,6 +111,15 @@ export default function PremiumPage() {
         setPacks(packsData);
       } catch (err) {
         console.error("Erreur chargement packs:", err);
+      }
+      try {
+        const params = await api.get<{ numeros?: Record<string, string>; nomCompte?: string }>(
+          "/parametres/paiement"
+        );
+        if (params?.numeros) setNumerosPaiement((prev) => ({ ...prev, ...params.numeros }));
+        if (params?.nomCompte) setNomCompte(params.nomCompte);
+      } catch {
+        // Route pas encore déployée : on garde les valeurs par défaut
       }
       try {
         const statutData = await api.get<StatutPremium>("/premium/statut");
@@ -344,9 +359,9 @@ export default function PremiumPage() {
                     au numéro {MOYENS.find((m) => m.code === moyenPaiement)?.label} :
                   </p>
                   <p className="text-lg font-bold text-teal-400 tracking-wide">
-                    {NUMEROS_PAIEMENT[moyenPaiement]}
+                    {numerosPaiement[moyenPaiement]}
                   </p>
-                  <p className="text-[11px] text-gray-600 mt-1">Compte : LOKEVENT</p>
+                  <p className="text-[11px] text-gray-600 mt-1">Compte : {nomCompte}</p>
                 </div>
               </div>
 

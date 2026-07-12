@@ -267,3 +267,12 @@ model Favori {
   @@unique([clientId, prestataireId])
   @@map("favoris")
 }
+
+model Parametre {
+  id        String   @id @default(cuid())
+  cle       String   @unique
+  valeur    Json
+  updatedAt DateTime @updatedAt
+
+  @@map("parametres")
+}
