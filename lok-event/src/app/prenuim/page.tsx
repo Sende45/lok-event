@@ -1,0 +1,403 @@
+"use client";
+
+// frontend/src/app/premium/page.tsx
+// Page de souscription LOKEVENT Premium.
+// ⚠️ Remplace les numéros mobile money dans NUMEROS_PAIEMENT par tes vrais numéros.
+
+import {
+  Crown,
+  Check,
+  X,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  Sparkles,
+  Zap,
+  BadgeCheck,
+  Megaphone,
+  Headphones,
+  ArrowLeft,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { api } from "@/lib/api";
+
+// ⚠️ TES NUMÉROS DE RÉCEPTION MOBILE MONEY — à remplacer
+const NUMEROS_PAIEMENT: Record<string, string> = {
+  WAVE: "+225 07 00 00 00 00",
+  ORANGE_MONEY: "+225 07 00 00 00 00",
+  MTN: "+225 05 00 00 00 00",
+};
+
+const MOYENS: { code: string; label: string }[] = [
+  { code: "WAVE", label: "Wave" },
+  { code: "ORANGE_MONEY", label: "Orange Money" },
+  { code: "MTN", label: "MTN MoMo" },
+];
+
+const AVANTAGES = [
+  {
+    icon: Zap,
+    titre: "Réservations prioritaires",
+    desc: "Vos demandes remontent en tête de liste chez les prestataires.",
+  },
+  {
+    icon: Sparkles,
+    titre: "Accès en avant-première",
+    desc: "Découvrez les nouveaux prestataires vérifiés avant tout le monde.",
+  },
+  {
+    icon: BadgeCheck,
+    titre: "Badge Premium 💎",
+    desc: "Visible des prestataires : un profil sérieux obtient des réponses plus rapides.",
+  },
+  {
+    icon: Megaphone,
+    titre: "Offres exclusives",
+    desc: "Promotions et annonces réservées aux membres, en temps réel.",
+  },
+  {
+    icon: Headphones,
+    titre: "Support prioritaire",
+    desc: "Vos questions traitées en premier par l'équipe LOKEVENT.",
+  },
+];
+
+interface Pack {
+  code: string;
+  label: string;
+  montant: number;
+  dureeMois: number;
+}
+
+interface StatutPremium {
+  estPremium: boolean;
+  premiumJusquau: string | null;
+  demandeEnAttente?: {
+    id: string;
+    pack: string;
+    montant: number;
+    createdAt: string;
+  } | null;
+}
+
+export default function PremiumPage() {
+  const router = useRouter();
+  const [packs, setPacks] = useState<Pack[]>([]);
+  const [statut, setStatut] = useState<StatutPremium | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [nonConnecte, setNonConnecte] = useState(false);
+
+  // Formulaire
+  const [packChoisi, setPackChoisi] = useState<string>("TRIMESTRIEL");
+  const [moyenPaiement, setMoyenPaiement] = useState<string>("WAVE");
+  const [reference, setReference] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const packsData = await api.get<Pack[]>("/premium/packs");
+        setPacks(packsData);
+      } catch (err) {
+        console.error("Erreur chargement packs:", err);
+      }
+      try {
+        const statutData = await api.get<StatutPremium>("/premium/statut");
+        setStatut(statutData);
+      } catch {
+        // 401 : l'utilisateur n'est pas connecté — on affiche quand même la page
+        setNonConnecte(true);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+
+    if (nonConnecte) {
+      router.push("/login");
+      return;
+    }
+    if (!reference.trim()) {
+      setFormError(
+        "Indiquez la référence de votre transaction mobile money (l'ID reçu par SMS après le paiement)."
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await api.post("/premium/souscrire", {
+        pack: packChoisi,
+        moyenPaiement,
+        referencePaiement: reference.trim(),
+      });
+      setSuccess(true);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Une erreur est survenue");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const packActif = packs.find((p) => p.code === packChoisi);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-teal-400/30 border-t-teal-400 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/5 px-4 md:px-8 py-4">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <span className="text-2xl font-bold tracking-tight">
+              LOK<span className="text-teal-400">EVENT</span>
+            </span>
+            <span className="flex items-center gap-1 text-[10px] bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
+              <Crown className="w-3 h-3" />
+              Premium
+            </span>
+          </Link>
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 text-sm text-gray-400 hover:text-teal-400 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retour
+          </Link>
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-4 md:px-8 py-10 md:py-14">
+        {/* ── Cas 1 : déjà Premium ── */}
+        {statut?.estPremium ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-lg mx-auto text-center bg-white/5 border border-yellow-500/20 rounded-2xl p-10"
+          >
+            <Crown className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold mb-2">Vous êtes membre Premium 💎</h1>
+            <p className="text-gray-400 text-sm">
+              {statut.premiumJusquau
+                ? `Votre abonnement est actif jusqu'au ${new Date(statut.premiumJusquau).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}.`
+                : "Votre abonnement est actif."}
+            </p>
+            <p className="text-gray-500 text-xs mt-4">
+              Profitez de vos avantages : réservations prioritaires, offres exclusives et badge visible des prestataires.
+            </p>
+          </motion.div>
+        ) : statut?.demandeEnAttente || success ? (
+          /* ── Cas 2 : demande en cours de validation ── */
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-lg mx-auto text-center bg-white/5 border border-white/10 rounded-2xl p-10"
+          >
+            {success ? (
+              <CheckCircle className="w-16 h-16 text-teal-400 mx-auto mb-4" />
+            ) : (
+              <Clock className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+            )}
+            <h1 className="text-2xl font-bold mb-2">
+              {success ? "Demande envoyée !" : "Validation en cours"}
+            </h1>
+            <p className="text-gray-400 text-sm">
+              Notre équipe vérifie votre paiement. Votre Premium sera activé très vite —
+              vous recevrez une notification dès que c'est fait 💎
+            </p>
+            {statut?.demandeEnAttente && !success && (
+              <p className="text-gray-500 text-xs mt-4">
+                Demande du{" "}
+                {new Date(statut.demandeEnAttente.createdAt).toLocaleDateString("fr-FR")} —{" "}
+                {statut.demandeEnAttente.pack} (
+                {statut.demandeEnAttente.montant.toLocaleString("fr-FR")} FCFA)
+              </p>
+            )}
+          </motion.div>
+        ) : (
+          /* ── Cas 3 : page de souscription ── */
+          <>
+            {/* Hero */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center mb-12"
+            >
+              <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs px-3 py-1.5 rounded-full mb-4">
+                <Crown className="w-3.5 h-3.5" />
+                LOKEVENT Premium
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold mb-3">
+                Passez au niveau <span className="text-teal-400">supérieur</span>
+              </h1>
+              <p className="text-gray-400 max-w-xl mx-auto">
+                Organisez vos événements avec une longueur d'avance : priorité, exclusivités
+                et visibilité auprès des meilleurs prestataires d'Abidjan.
+              </p>
+            </motion.div>
+
+            {/* Avantages */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+              {AVANTAGES.map((a, i) => (
+                <motion.div
+                  key={a.titre}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.07 }}
+                  className="bg-white/5 border border-white/10 rounded-xl p-5"
+                >
+                  <a.icon className="w-6 h-6 text-teal-400 mb-3" />
+                  <h3 className="font-semibold text-sm mb-1">{a.titre}</h3>
+                  <p className="text-xs text-gray-400">{a.desc}</p>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Packs */}
+            <h2 className="text-xl font-bold mb-4 text-center">Choisissez votre pack</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12 max-w-3xl mx-auto">
+              {packs.map((pack) => {
+                const selectionne = packChoisi === pack.code;
+                const populaire = pack.code === "TRIMESTRIEL";
+                return (
+                  <button
+                    key={pack.code}
+                    type="button"
+                    onClick={() => setPackChoisi(pack.code)}
+                    className={`relative text-left rounded-2xl p-6 border transition-all ${
+                      selectionne
+                        ? "bg-teal-400/10 border-teal-400/50 ring-2 ring-teal-400/30"
+                        : "bg-white/5 border-white/10 hover:border-white/25"
+                    }`}
+                  >
+                    {populaire && (
+                      <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] bg-yellow-500 text-black font-bold px-2.5 py-0.5 rounded-full">
+                        POPULAIRE
+                      </span>
+                    )}
+                    <p className="text-sm text-gray-400">{pack.label}</p>
+                    <p className="text-2xl font-bold mt-1">
+                      {pack.montant.toLocaleString("fr-FR")}{" "}
+                      <span className="text-sm font-normal text-gray-400">FCFA</span>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {pack.dureeMois} mois —{" "}
+                      {Math.round(pack.montant / pack.dureeMois).toLocaleString("fr-FR")} FCFA/mois
+                    </p>
+                    {selectionne && (
+                      <span className="absolute top-4 right-4 w-5 h-5 bg-teal-400 rounded-full flex items-center justify-center">
+                        <Check className="w-3 h-3 text-black" />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Paiement + formulaire */}
+            <div className="max-w-lg mx-auto bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8">
+              <h2 className="text-lg font-bold mb-4">Finalisez en 2 étapes</h2>
+
+              {/* Étape 1 : payer */}
+              <div className="mb-6">
+                <p className="text-sm font-medium text-teal-400 mb-2">
+                  1. Envoyez le paiement par mobile money
+                </p>
+                <div className="flex gap-2 mb-3">
+                  {MOYENS.map((m) => (
+                    <button
+                      key={m.code}
+                      type="button"
+                      onClick={() => setMoyenPaiement(m.code)}
+                      className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                        moyenPaiement === m.code
+                          ? "bg-teal-400/10 border-teal-400/50 text-teal-300"
+                          : "bg-white/5 border-white/10 text-gray-400 hover:border-white/25"
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="bg-black/40 border border-white/10 rounded-lg p-4 text-center">
+                  <p className="text-xs text-gray-500 mb-1">
+                    Envoyez{" "}
+                    <span className="text-white font-semibold">
+                      {packActif?.montant.toLocaleString("fr-FR")} FCFA
+                    </span>{" "}
+                    au numéro {MOYENS.find((m) => m.code === moyenPaiement)?.label} :
+                  </p>
+                  <p className="text-lg font-bold text-teal-400 tracking-wide">
+                    {NUMEROS_PAIEMENT[moyenPaiement]}
+                  </p>
+                  <p className="text-[11px] text-gray-600 mt-1">Compte : LOKEVENT</p>
+                </div>
+              </div>
+
+              {/* Étape 2 : référence */}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-teal-400 mb-2">
+                    2. Collez la référence de la transaction
+                  </p>
+                  <input
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
+                    placeholder="Ex : TXN-20260712-123456 (reçu par SMS)"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none transition-colors"
+                    maxLength={100}
+                  />
+                  <p className="text-[11px] text-gray-600 mt-1.5">
+                    C'est l'identifiant qui figure dans le SMS de confirmation de votre opérateur.
+                    Il nous permet de retrouver votre paiement.
+                  </p>
+                </div>
+
+                {formError && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {formError}
+                  </div>
+                )}
+
+                <motion.button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-3 bg-gradient-to-r from-teal-400 to-teal-500 text-black font-bold rounded-lg hover:shadow-[0_0_30px_rgba(20,184,166,0.3)] transition-all disabled:opacity-50"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                >
+                  {isSubmitting
+                    ? "Envoi..."
+                    : nonConnecte
+                    ? "Se connecter pour souscrire"
+                    : `Activer mon Premium — ${packActif?.montant.toLocaleString("fr-FR")} FCFA`}
+                </motion.button>
+
+                <p className="text-[11px] text-gray-600 text-center">
+                  Activation sous quelques heures après vérification du paiement par notre équipe.
+                </p>
+              </form>
+            </div>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}

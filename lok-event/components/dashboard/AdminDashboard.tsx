@@ -81,6 +81,19 @@ interface UsersResponse {
   pagination: { total: number };
 }
 
+interface DemandeAbonnement {
+  id: string;
+  pack: string;
+  montant: number;
+  statut: string;
+  moyenPaiement: string | null;
+  referencePaiement: string | null;
+  debutLe: string | null;
+  finLe: string | null;
+  createdAt: string;
+  user: { id: string; nom: string; prenom: string; email: string; telephone: string | null };
+}
+
 interface Categorie {
   id: string;
   nom: string;
@@ -108,8 +121,16 @@ const statutLabels: Record<string, { label: string; color: string }> = {
   ANNULEE: { label: "Annulé", color: "bg-red-500/20 text-red-500" },
 };
 
+const abonnementLabels: Record<string, { label: string; color: string }> = {
+  EN_ATTENTE: { label: "À valider", color: "bg-yellow-500/20 text-yellow-500" },
+  ACTIF: { label: "Actif", color: "bg-green-500/20 text-green-500" },
+  EXPIRE: { label: "Expiré", color: "bg-gray-500/20 text-gray-400" },
+  REFUSE: { label: "Refusé", color: "bg-red-500/20 text-red-400" },
+};
+
 const tabs = [
   { id: "stats", label: "Stats", icon: BarChart3 },
+  { id: "premium", label: "Premium", icon: Crown },
   { id: "providers", label: "Prestataires", icon: Briefcase },
   { id: "users", label: "Utilisateurs", icon: Users },
   { id: "categories", label: "Catégories", icon: FolderTree },
@@ -140,6 +161,10 @@ export default function AdminDashboard() {
 
   // Users
   const [users, setUsers] = useState<UserRow[]>([]);
+
+  // Premium
+  const [demandes, setDemandes] = useState<DemandeAbonnement[]>([]);
+  const [filtreAbo, setFiltreAbo] = useState<string>("EN_ATTENTE");
 
   // Categories
   const [categories, setCategories] = useState<Categorie[]>([]);
@@ -179,7 +204,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function loadAll() {
       try {
-        const [statsData, bookingsData, pendingData, providersData, usersData, catsData, tagsData] =
+        const [statsData, bookingsData, pendingData, providersData, usersData, catsData, tagsData, demandesData] =
           await Promise.all([
             api.get<Stats>("/admin/stats"),
             api.get<RecentBooking[]>("/admin/bookings/recent"),
@@ -188,6 +213,7 @@ export default function AdminDashboard() {
             api.get<UsersResponse>("/admin/users"),
             api.get<Categorie[]>("/categories"),
             api.get<TagsGrouped>("/tags"),
+            api.get<DemandeAbonnement[]>("/premium/demandes").catch(() => [] as DemandeAbonnement[]),
           ]);
         setStats(statsData);
         setRecentBookings(bookingsData);
@@ -196,6 +222,7 @@ export default function AdminDashboard() {
         setUsers(usersData.users);
         setCategories(catsData);
         setTagsGrouped(tagsData);
+        setDemandes(demandesData);
         setLastRefresh(new Date());
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erreur de chargement");
@@ -234,6 +261,33 @@ export default function AdminDashboard() {
   const handleToggleActive = async (id: string) => {
     const updated = await api.patch<{ actif: boolean }>(`/admin/providers/${id}/toggle-active`, {});
     setProviders((prev) => prev.map((p) => (p.id === id ? { ...p, actif: updated.actif } : p)));
+  };
+
+  // ---- Premium ----
+  const handleValiderDemande = async (id: string) => {
+    if (!confirm("Confirmer : le paiement a bien été reçu sur le compte mobile money ?")) return;
+    try {
+      await api.patch(`/premium/demandes/${id}/valider`, {});
+      setDemandes((prev) => prev.map((d) => (d.id === id ? { ...d, statut: "ACTIF" } : d)));
+      setUsers((prev) =>
+        prev.map((u) =>
+          demandes.find((d) => d.id === id)?.user.id === u.id ? { ...u, estPremium: true } : u
+        )
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur lors de la validation");
+    }
+  };
+
+  const handleRefuserDemande = async (id: string) => {
+    const motif = prompt("Motif du refus (optionnel, sera envoyé à l'utilisateur) :");
+    if (motif === null) return; // annulé
+    try {
+      await api.patch(`/premium/demandes/${id}/refuser`, { motif: motif || undefined });
+      setDemandes((prev) => prev.map((d) => (d.id === id ? { ...d, statut: "REFUSE" } : d)));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur lors du refus");
+    }
   };
 
   // ---- Catégories CRUD ----
@@ -673,6 +727,102 @@ export default function AdminDashboard() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === "premium" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Crown className="w-5 h-5 text-yellow-400" />
+                Abonnements Premium
+              </h2>
+              <div className="flex gap-1.5">
+                {["EN_ATTENTE", "ACTIF", "EXPIRE", "REFUSE", "TOUS"].map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFiltreAbo(f)}
+                    className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                      filtreAbo === f
+                        ? "bg-teal-400/10 text-teal-400 border-teal-400/30"
+                        : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
+                    }`}
+                  >
+                    {f === "TOUS" ? "Tous" : abonnementLabels[f]?.label || f}
+                    {f === "EN_ATTENTE" && demandes.filter((d) => d.statut === "EN_ATTENTE").length > 0 && (
+                      <span className="ml-1.5 bg-yellow-500 text-black rounded-full px-1.5 font-bold">
+                        {demandes.filter((d) => d.statut === "EN_ATTENTE").length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {demandes.filter((d) => filtreAbo === "TOUS" || d.statut === filtreAbo).length === 0 && (
+                <p className="text-sm text-gray-500 bg-white/5 border border-white/10 rounded-xl p-6 text-center">
+                  Aucun abonnement {filtreAbo !== "TOUS" ? `« ${abonnementLabels[filtreAbo]?.label || filtreAbo} »` : ""} pour le moment.
+                </p>
+              )}
+              {demandes
+                .filter((d) => filtreAbo === "TOUS" || d.statut === filtreAbo)
+                .map((d) => {
+                  const info = abonnementLabels[d.statut] || { label: d.statut, color: "bg-gray-500/20 text-gray-400" };
+                  return (
+                    <div key={d.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium flex items-center gap-2">
+                            {d.user.prenom} {d.user.nom}
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${info.color}`}>
+                              {info.label}
+                            </span>
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {d.user.email}
+                            {d.user.telephone && ` · ${d.user.telephone}`}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 mt-2">
+                            <span className="text-teal-400 font-medium">
+                              {d.pack} — {d.montant.toLocaleString("fr-FR")} FCFA
+                            </span>
+                            {d.moyenPaiement && <span>via {d.moyenPaiement.replace("_", " ")}</span>}
+                            <span>demandé le {new Date(d.createdAt).toLocaleDateString("fr-FR")}</span>
+                            {d.finLe && <span>expire le {new Date(d.finLe).toLocaleDateString("fr-FR")}</span>}
+                          </div>
+                          {d.referencePaiement && (
+                            <p className="text-xs mt-2">
+                              <span className="text-gray-500">Réf. transaction : </span>
+                              <span className="font-mono bg-black/40 border border-white/10 rounded px-2 py-0.5 text-gray-300">
+                                {d.referencePaiement}
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                        {d.statut === "EN_ATTENTE" && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleValiderDemande(d.id)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-teal-400 text-black rounded-lg hover:bg-teal-300 transition-colors"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              Valider
+                            </button>
+                            <button
+                              onClick={() => handleRefuserDemande(d.id)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/10 transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              Refuser
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </motion.div>
         )}
