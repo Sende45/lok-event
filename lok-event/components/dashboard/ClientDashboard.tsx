@@ -18,7 +18,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
-  Crown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
@@ -102,9 +101,6 @@ export default function ClientDashboard() {
   const [dispoError, setDispoError] = useState("");
   const [dispoMonth, setDispoMonth] = useState<Date>(new Date());
 
-  // Statut Premium (badge)
-  const [estPremium, setEstPremium] = useState(false);
-
   useEffect(() => {
     async function loadDashboard() {
       try {
@@ -118,13 +114,6 @@ export default function ClientDashboard() {
         setError(err instanceof Error ? err.message : "Erreur de chargement");
       } finally {
         setIsLoading(false);
-      }
-      // Statut Premium — non bloquant : en cas d'erreur on ignore simplement
-      try {
-        const statut = await api.get<{ estPremium: boolean }>("/premium/statut");
-        setEstPremium(Boolean(statut?.estPremium));
-      } catch {
-        /* silencieux */
       }
     }
     loadDashboard();
@@ -362,14 +351,8 @@ export default function ClientDashboard() {
               transition={{ duration: 0.5 }}
             >
               <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-                <h2 className="text-lg font-bold flex items-center gap-2">
+                <h2 className="text-lg font-bold">
                   {user.prenom} {user.nom}
-                  {estPremium && (
-                    <span className="flex items-center gap-1 text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 px-2 py-0.5 rounded-full">
-                      <Crown className="w-3 h-3" />
-                      Premium
-                    </span>
-                  )}
                 </h2>
 
                 <div className="space-y-2 text-sm mt-4">
@@ -391,16 +374,6 @@ export default function ClientDashboard() {
                     })}
                   </div>
                 </div>
-
-                {!estPremium && (
-                  <Link
-                    href="/premium"
-                    className="mt-5 flex items-center justify-center gap-2 w-full py-2.5 text-sm font-medium text-yellow-400 border border-yellow-500/25 rounded-lg hover:bg-yellow-500/10 transition-colors"
-                  >
-                    <Crown className="w-4 h-4" />
-                    Devenir Premium
-                  </Link>
-                )}
               </div>
             </motion.div>
           )}

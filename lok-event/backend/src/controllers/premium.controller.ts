@@ -15,6 +15,8 @@ interface AuthRequest extends Request {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Packs Premium (montants en FCFA — ajuste-les selon ta grille tarifaire)
+// ⚠️ Le Premium est réservé aux PRESTATAIRES : ce sont eux les clients payants
+// de LOKEVENT. Les organisateurs d'événements utilisent la plateforme gratuitement.
 // ─────────────────────────────────────────────────────────────────────────────
 const PACKS: Record<string, { montant: number; dureeMois: number; label: string }> = {
   MENSUEL: { montant: 25000, dureeMois: 1, label: "Pack Mensuel" },
@@ -89,13 +91,28 @@ export const getMonStatut = async (req: AuthRequest, res: Response) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /premium/souscrire — le client choisit un pack et déclare son paiement
-// mobile money. L'abonnement est créé EN_ATTENTE jusqu'à validation admin.
+// POST /premium/souscrire — le PRESTATAIRE choisit un pack et déclare son
+// paiement mobile money. L'abonnement est créé EN_ATTENTE jusqu'à validation
+// admin. Réservé aux comptes ayant un profil prestataire.
 // Body : { pack, moyenPaiement, referencePaiement? }
 // ─────────────────────────────────────────────────────────────────────────────
 export const souscrire = async (req: AuthRequest, res: Response) => {
   try {
     const { pack, moyenPaiement, referencePaiement } = req.body;
+
+    // ⚠️ Garde métier : le Premium est réservé aux prestataires.
+    // Un compte organisateur (sans profil prestataire) ne peut pas souscrire.
+    const prestataire = await prisma.prestataire.findUnique({
+      where: { userId: req.user!.id },
+      select: { id: true },
+    });
+    if (!prestataire) {
+      res.status(403).json({
+        message:
+          "Le Premium est réservé aux prestataires. Créez d'abord votre profil prestataire pour souscrire à un pack.",
+      });
+      return;
+    }
 
     const packInfo = PACKS[pack];
     if (!packInfo) {

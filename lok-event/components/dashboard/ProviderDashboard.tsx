@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Star, DollarSign, AlertCircle, LogOut, Menu, X, Camera, Trash2, Edit2, Building2, MapPin, Phone, FileText, Home, MessageSquare } from "lucide-react";
+import { Calendar, Star, DollarSign, AlertCircle, LogOut, Menu, X, Camera, Trash2, Edit2, Building2, MapPin, Phone, FileText, Home, MessageSquare, Crown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -73,6 +73,14 @@ interface ReviewsResponse {
   stats: { averageRating: number; totalReviews: number };
 }
 
+// Statut Premium : le Premium est réservé aux prestataires — ce sont eux
+// les clients payants de LOKEVENT (souscription aux packs).
+interface PremiumStatut {
+  estPremium: boolean;
+  premiumJusquau: string | null;
+  demandeEnAttente?: { id: string; pack: string; montant: number; createdAt: string } | null;
+}
+
 const statutLabels: Record<string, { label: string; color: string }> = {
   EN_ATTENTE: { label: "En attente", color: "bg-yellow-500/20 text-yellow-500" },
   CONFIRMEE: { label: "Confirmé", color: "bg-green-500/20 text-green-500" },
@@ -90,6 +98,11 @@ export default function ProviderDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+
+  // Statut Premium du prestataire (badge + CTA de souscription)
+  const [estPremium, setEstPremium] = useState(false);
+  const [premiumJusquau, setPremiumJusquau] = useState<string | null>(null);
+  const [demandePremiumEnAttente, setDemandePremiumEnAttente] = useState(false);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -128,6 +141,15 @@ export default function ProviderDashboard() {
         setError(err instanceof Error ? err.message : "Erreur de chargement");
       } finally {
         setIsLoading(false);
+      }
+      // Statut Premium — non bloquant : en cas d'erreur on ignore simplement
+      try {
+        const statut = await api.get<PremiumStatut>("/premium/statut");
+        setEstPremium(Boolean(statut?.estPremium));
+        setPremiumJusquau(statut?.premiumJusquau ?? null);
+        setDemandePremiumEnAttente(Boolean(statut?.demandeEnAttente));
+      } catch {
+        /* silencieux */
       }
     }
     loadDashboard();
@@ -367,10 +389,23 @@ export default function ProviderDashboard() {
               </div>
 
               <div className="flex-1">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <h1 className="text-2xl font-bold">{profile.nomEntreprise}</h1>
                   {profile.verifie && (
                     <span className="bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full text-xs">✓ Vérifié</span>
+                  )}
+                  {estPremium && (
+                    <span
+                      className="flex items-center gap-1 text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/20 px-2 py-0.5 rounded-full"
+                      title={
+                        premiumJusquau
+                          ? `Premium actif jusqu'au ${new Date(premiumJusquau).toLocaleDateString("fr-FR")}`
+                          : "Premium actif"
+                      }
+                    >
+                      <Crown className="w-3 h-3" />
+                      Premium
+                    </span>
                   )}
                   <span className="flex items-center gap-1 text-sm text-yellow-500">
                     <Star className="w-4 h-4 fill-yellow-500" />
@@ -413,6 +448,22 @@ export default function ProviderDashboard() {
                     disabled={isUploading}
                   />
                 </label>
+                {/* Souscription Premium : réservée aux prestataires */}
+                {!estPremium && !demandePremiumEnAttente && (
+                  <Link
+                    href="/premium"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 text-sm font-medium text-yellow-400 border border-yellow-500/25 rounded-lg hover:bg-yellow-500/10 transition-colors whitespace-nowrap"
+                  >
+                    <Crown className="w-4 h-4" />
+                    Devenir Premium
+                  </Link>
+                )}
+                {!estPremium && demandePremiumEnAttente && (
+                  <span className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 text-xs text-yellow-400/80 whitespace-nowrap">
+                    <Crown className="w-4 h-4" />
+                    Premium en validation…
+                  </span>
+                )}
               </div>
             </div>
 
