@@ -56,6 +56,7 @@ model User {
   prestataire  Prestataire?
   reservations Reservation[]
   avis         Avis[]
+  actif        Boolean       @default(true)
   favoris      Favori[]
   notifications Notification[]
   abonnements  Abonnement[]

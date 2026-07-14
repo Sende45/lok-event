@@ -24,12 +24,34 @@ export const protect = async (
       role: string;
       email?: string;
     };
-    // email avec repli sur chaîne vide : le type global exige email: string,
-    // mais selon la date de génération du token, le payload peut ne pas le contenir
+
+    // ── Re-vérification en base à chaque requête ──────────────────────────
+    // Le token seul ne suffit pas : un compte supprimé ou banni garderait
+    // sinon l'accès jusqu'à l'expiration du JWT (7 jours). Ce lookup par
+    // clé primaire est indexé et coûte < 1 ms — négligeable.
+    // Bonus : le rôle et l'email sont lus depuis la BASE, pas depuis le
+    // token — une révocation de rôle prend effet immédiatement.
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, email: true, role: true, actif: true },
+    });
+
+    if (!user) {
+      res.status(401).json({ message: "Compte introuvable. Reconnectez-vous." });
+      return;
+    }
+
+    if (!user.actif) {
+      res.status(403).json({
+        message: "Ce compte a été désactivé. Contactez le support LOKEVENT.",
+      });
+      return;
+    }
+
     req.user = {
-      id: decoded.id,
-      role: decoded.role,
-      email: decoded.email ?? "",
+      id: user.id,
+      role: user.role,
+      email: user.email,
     };
     next();
   } catch {
