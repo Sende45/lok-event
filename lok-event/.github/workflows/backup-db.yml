@@ -1,0 +1,73 @@
+# .github/workflows/backup-db.yml
+#
+# Sauvegarde hebdomadaire automatique de la base LOKEVENT.
+# Chaque lundi à 03h00 UTC, GitHub Actions :
+#   1. fait un pg_dump complet de la base de production,
+#   2. le chiffre en AES-256 (personne ne peut le lire sans la passphrase,
+#      même en cas de fuite de l'artefact),
+#   3. le stocke comme artefact GitHub, conservé 90 jours.
+#
+# ── Prérequis (une seule fois, dans GitHub) ────────────────────────────────
+# Repo → Settings → Secrets and variables → Actions → New repository secret :
+#   • DATABASE_URL_PROD  : l'URL EXTERNE de ta base Render
+#     (dashboard Render → ta base → "External Database URL" —
+#      l'URL interne ne fonctionne pas depuis GitHub)
+#   • BACKUP_PASSPHRASE  : une phrase longue et aléatoire, à conserver dans
+#     un gestionnaire de mots de passe. ⚠️ Sans elle, les sauvegardes sont
+#     indéchiffrables — ne la perds pas.
+#
+# Lancement manuel possible : onglet Actions → ce workflow → "Run workflow"
+# (fais-le une première fois tout de suite pour valider la chaîne).
+
+name: Sauvegarde hebdomadaire de la base
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # tous les lundis à 03h00 UTC
+  workflow_dispatch: {} # + bouton de lancement manuel
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Installer le client PostgreSQL 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -sSf -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Dump de la base
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+        run: |
+          pg_dump "$DATABASE_URL" \
+            --format=custom \
+            --no-owner \
+            --no-privileges \
+            --file=lokevent.dump
+          ls -lh lokevent.dump
+
+      - name: Chiffrer la sauvegarde (AES-256)
+        env:
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          gpg --batch --yes --symmetric --cipher-algo AES256 \
+            --passphrase "$PASSPHRASE" \
+            --output "lokevent-$(date +%F).dump.gpg" \
+            lokevent.dump
+          rm lokevent.dump
+          ls -lh *.dump.gpg
+
+      - name: Stocker l'artefact (90 jours)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lokevent-backup-${{ github.run_id }}
+          path: "*.dump.gpg"
+          retention-days: 90
+          if-no-files-found: error
