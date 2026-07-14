@@ -1,104 +1,134 @@
-// src/hooks/useNotifications.ts
-import { useState, useEffect } from "react";
+// frontend/src/hooks/useNotifications.ts
+//
+// ⚠️ C'est ICI que vivait le bug "e.filter is not a function" :
+// l'ancienne API renvoyait un TABLEAU de notifications, la nouvelle renvoie
+// un OBJET { notifications, unreadCount, pagination }. Ce hook consomme le
+// nouveau format et expose en plus la suppression (une / toutes).
+
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
-import { io, Socket } from "socket.io-client";
+import { getSocket } from "@/lib/socket";
 import { Notification } from "@/types/notification";
 
-let socket: Socket | null = null;
+interface NotificationsResponse {
+  notifications: Notification[];
+  unreadCount: number;
+  pagination: { total: number; pages: number; currentPage: number; limit: number };
+}
 
 export function useNotifications(userId?: string) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Connexion Socket.io
+  // ---- Chargement initial (nouveau format : objet, plus un tableau) ----
+  const refresh = useCallback(async () => {
+    try {
+      const data = await api.get<NotificationsResponse>("/notifications?limit=20");
+      setNotifications(data.notifications);
+      setUnreadCount(data.unreadCount);
+    } catch (err) {
+      console.error("Erreur chargement notifications", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!userId) return;
+    refresh();
+  }, [refresh, userId]);
 
-    // ⚠️ CORRECTION IMPORTANTE : NEXT_PUBLIC_API_URL contient "/api"
-    // (ex: https://lok-event.onrender.com/api). Socket.io interpréterait
-    // "/api" comme un namespace et la connexion échouerait silencieusement.
-    // On retire donc le suffixe /api pour ne garder que le domaine.
-    const socketUrl = (
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-    ).replace(/\/api\/?$/, "");
+  // ---- Polling léger du badge (filet de sécurité si le socket tombe) ----
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.get<{ unreadCount: number }>("/notifications/unread-count");
+        setUnreadCount(res.unreadCount);
+      } catch {
+        /* silencieux */
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
-    socket = io(socketUrl, {
-      reconnection: true,
-      reconnectionAttempts: 5,
-    });
+  // ---- Temps réel : abonnement au socket PARTAGÉ ----
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
 
-    socket.emit("join", userId);
-    // En cas de reconnexion (réseau instable), on rejoint à nouveau sa room
-    socket.on("connect", () => {
-      socket?.emit("join", userId);
-    });
+    const onNewNotification = (notif: Notification) => {
+      setUnreadCount((c) => c + 1);
+      setNotifications((prev) => [notif, ...prev].slice(0, 20));
+    };
 
-    socket.on("newNotification", (notification: Notification) => {
-      setNotifications((prev) => [notification, ...prev]);
-      setUnreadCount((prev) => prev + 1);
-    });
+    // "newNotification" = événement émis par sendNotification côté backend
+    socket.on("newNotification", onNewNotification);
+    // Annonces Premium diffusées à la room premium (même affichage)
+    socket.on("notification:premium", onNewNotification);
 
     return () => {
-      if (socket) {
-        socket.disconnect();
-        socket = null;
-      }
+      socket.off("newNotification", onNewNotification);
+      socket.off("notification:premium", onNewNotification);
     };
-  }, [userId]);
+  }, []);
 
-  // Charger les notifications initiales
-  useEffect(() => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchNotifications = async () => {
-      try {
-        setLoading(true);
-        const data = await api.get<Notification[]>("/notifications");
-        const notifs = data || [];
-        setNotifications(notifs);
-        setUnreadCount(notifs.filter((n) => !n.isRead).length);
-      } catch (err) {
-        console.error("Erreur chargement notifications", err);
-        setNotifications([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNotifications();
-  }, [userId]);
-
-  const markAsRead = async (id: string) => {
+  // ---- Actions (mises à jour optimistes : l'UI réagit immédiatement) ----
+  const markAsRead = useCallback(async (id: string) => {
+    setNotifications((prev) => {
+      const cible = prev.find((n) => n.id === id);
+      if (cible && !cible.isRead) setUnreadCount((c) => Math.max(0, c - 1));
+      return prev.map((n) => (n.id === id ? { ...n, isRead: true } : n));
+    });
     try {
-      await api.put(`/notifications/${id}/read`, {});
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error(err);
+      await api.patch(`/notifications/${id}/read`, {});
+    } catch {
+      /* silencieux */
     }
-  };
+  }, []);
 
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setUnreadCount(0);
     try {
-      await api.put("/notifications/mark-all", {});
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-    } catch (err) {
-      console.error(err);
+      await api.patch("/notifications/read-all", {});
+    } catch {
+      /* silencieux */
     }
-  };
+  }, []);
+
+  const deleteNotification = useCallback(async (id: string) => {
+    setNotifications((prev) => {
+      const cible = prev.find((n) => n.id === id);
+      if (cible && !cible.isRead) setUnreadCount((c) => Math.max(0, c - 1));
+      return prev.filter((n) => n.id !== id);
+    });
+    try {
+      await api.deleteWithBody(`/notifications/${id}`, {});
+    } catch {
+      /* silencieux */
+    }
+  }, []);
+
+  const deleteAllNotifications = useCallback(async () => {
+    setNotifications([]);
+    setUnreadCount(0);
+    try {
+      await api.deleteWithBody("/notifications", {});
+    } catch {
+      /* silencieux */
+    }
+  }, []);
 
   return {
     notifications,
     unreadCount,
-    loading,
+    isLoading,
+    refresh,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
+    deleteAllNotifications,
   };
 }

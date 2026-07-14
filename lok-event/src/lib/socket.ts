@@ -12,12 +12,15 @@
 //     const socket = getSocket();
 //     if (!socket) return;
 //
-//     socket.on("notification", (n) => { /* notifications personnelles */ });
+//     const onNotif = (n) => { /* notifications personnelles */ };
+//     socket.on("newNotification", onNotif);
 //     socket.on("notification:premium", (n) => { /* annonces exclusives 💎 */ });
 //     socket.on("premium:statut", ({ estPremium }) => { /* afficher le badge 💎 */ });
 //
 //     return () => {
-//       socket.off("notification");
+//       // ⚠️ retirer UNIQUEMENT ses propres listeners — jamais de
+//       // socket.disconnect() dans un composant : le socket est partagé.
+//       socket.off("newNotification", onNotif);
 //       socket.off("notification:premium");
 //       socket.off("premium:statut");
 //     };
@@ -39,14 +42,22 @@ export function getSocket(): Socket | null {
   const token = localStorage.getItem("lokevent_token");
   if (!token) return null;
 
-  if (socket && socket.connected) return socket;
+  // Déjà créé (connecté OU en cours de reconnexion) : on réutilise.
+  // Ne pas recréer un socket pendant une reconnexion, sinon on empile
+  // les connexions — c'est ça qui provoquait les
+  // "WebSocket is closed before the connection is established" en boucle.
+  if (socket) return socket;
 
   socket = io(API_URL, {
     auth: { token },
-    transports: ["websocket", "polling"],
+    // ⚠️ websocket DIRECT, sans étape polling : le handshake
+    // polling→websocket casse derrière le proxy de Render
+    // (c'est le 400 sur ?transport=polling&sid=... dans ta console).
+    transports: ["websocket"],
     reconnection: true,
-    reconnectionAttempts: 5,
+    reconnectionAttempts: 10,
     reconnectionDelay: 2000,
+    reconnectionDelayMax: 10000,
   });
 
   socket.on("connect_error", (err) => {
