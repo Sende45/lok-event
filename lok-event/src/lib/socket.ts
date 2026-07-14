@@ -31,7 +31,24 @@
 
 import { io, Socket } from "socket.io-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const RAW_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+// ⚠️ Socket.io interprète le CHEMIN de l'URL comme un NAMESPACE.
+// NEXT_PUBLIC_API_URL contient "/api" pour les routes REST
+// (ex: https://lok-event.onrender.com/api) — si on le passe tel quel à io(),
+// le client demande le namespace "/api" au serveur, qui répond
+// "Invalid namespace". On ne garde donc que l'ORIGINE de l'URL
+// (https://lok-event.onrender.com) pour la connexion temps réel.
+function extraireOrigine(url: string): string {
+  try {
+    return new URL(url).origin;
+  } catch {
+    // URL malformée dans l'env : on la renvoie telle quelle plutôt que planter
+    return url;
+  }
+}
+
+const SOCKET_URL = extraireOrigine(RAW_URL);
 
 let socket: Socket | null = null;
 
@@ -48,7 +65,7 @@ export function getSocket(): Socket | null {
   // "WebSocket is closed before the connection is established" en boucle.
   if (socket) return socket;
 
-  socket = io(API_URL, {
+  socket = io(SOCKET_URL, {
     auth: { token },
     // ⚠️ websocket DIRECT, sans étape polling : le handshake
     // polling→websocket casse derrière le proxy de Render
