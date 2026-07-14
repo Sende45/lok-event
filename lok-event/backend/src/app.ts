@@ -1,6 +1,7 @@
 // backend/src/app.ts
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import { prisma } from "./lib/prisma";
 import authRoutes from "./routes/auth.routes";
 import prestataireRoutes from "./routes/prestataire.routes";
@@ -20,6 +21,16 @@ import { globalLimiter } from "./middlewares/rateLimit.middleware";
 
 const app = express();
 app.set("trust proxy", 1);
+
+// En-têtes de sécurité HTTP (X-Content-Type-Options, HSTS, X-Frame-Options,
+// etc.). L'API ne sert que du JSON : la politique CSP par défaut de helmet
+// est faite pour des pages HTML et n'a pas de sens ici — on la désactive
+// pour éviter tout effet de bord, tout le reste de helmet s'applique.
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  })
+);
 
 // Active l'extension unaccent si absente (idempotent, sans danger).
 // Garantit que la recherche insensible aux accents fonctionne,
@@ -66,7 +77,10 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+// Limite explicite du body JSON : largement suffisant pour tous tes
+// endpoints (les photos passent par multer, pas par le body JSON).
+// Bloque les payloads géants destinés à saturer la mémoire du serveur.
+app.use(express.json({ limit: "200kb" }));
 
 // Le rate-limiter global est désactivé en environnement de test
 // pour ne pas fausser les résultats des tests qui font beaucoup de requêtes rapides.
