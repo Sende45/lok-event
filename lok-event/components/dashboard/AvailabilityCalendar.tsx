@@ -104,10 +104,10 @@ export default function AvailabilityCalendar() {
   aujourdhui.setHours(0, 0, 0, 0);
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-6">
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-3 sm:p-4 md:p-6">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <CalendarOff className="w-5 h-5 text-teal-400" />
+        <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
+          <CalendarOff className="w-5 h-5 text-teal-400 shrink-0" />
           Mes disponibilités
         </h2>
       </div>
@@ -126,7 +126,8 @@ export default function AvailabilityCalendar() {
           <div className="flex items-center justify-between mb-3">
             <button
               onClick={moisPrecedent}
-              className="p-2 rounded-full hover:bg-white/10 active:bg-white/15 transition-colors"
+              aria-label="Mois précédent"
+              className="p-2.5 sm:p-2 rounded-full hover:bg-white/10 active:bg-white/15 transition-colors"
             >
               <ChevronLeft className="w-5 h-5 text-gray-400" />
             </button>
@@ -135,13 +136,14 @@ export default function AvailabilityCalendar() {
             </p>
             <button
               onClick={moisSuivant}
-              className="p-2 rounded-full hover:bg-white/10 active:bg-white/15 transition-colors"
+              aria-label="Mois suivant"
+              className="p-2.5 sm:p-2 rounded-full hover:bg-white/10 active:bg-white/15 transition-colors"
             >
               <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-1 mb-1">
+          <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-1">
             {JOURS.map((j) => (
               <div key={j} className="text-center text-[10px] uppercase tracking-wider text-gray-500 py-1">
                 {j}
@@ -149,7 +151,7 @@ export default function AvailabilityCalendar() {
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
             {cases.map((jour, i) => {
               if (jour === null) return <div key={`v-${i}`} />;
               const cle = cleJour(annee, mois, jour);
@@ -163,7 +165,7 @@ export default function AvailabilityCalendar() {
                   key={cle}
                   onClick={() => toggleJour(jour)}
                   disabled={estPasse || togglingDate === cle}
-                  className={`aspect-square rounded-lg text-xs md:text-sm font-medium transition-colors relative
+                  className={`aspect-square min-h-[34px] rounded-md sm:rounded-lg text-xs md:text-sm font-medium transition-colors relative
                     ${estPasse
                       ? "text-gray-700 cursor-not-allowed"
                       : bloque
@@ -180,7 +182,9 @@ export default function AvailabilityCalendar() {
             })}
           </div>
 
-          <div className="flex items-center gap-4 mt-4 text-[11px] text-gray-500">
+          {/* flex-wrap : la légende passe sur 2 lignes au lieu de déborder
+              sur les très petits écrans */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-[11px] text-gray-500">
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded bg-white/10 inline-block" /> Disponible
             </span>

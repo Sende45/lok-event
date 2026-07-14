@@ -104,11 +104,13 @@ export default function ServicesManager() {
   };
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-6">
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <Tag className="w-5 h-5 text-teal-400" />
-          Mes prestations & tarifs
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-3 sm:p-4 md:p-6">
+      {/* flex-wrap : sur très petit écran, le bouton passe sous le titre
+          au lieu de l'écraser */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+        <h2 className="text-base sm:text-lg font-bold flex items-center gap-2 min-w-0">
+          <Tag className="w-5 h-5 text-teal-400 shrink-0" />
+          <span className="truncate">Mes prestations & tarifs</span>
         </h2>
         <button
           onClick={openCreate}
@@ -141,10 +143,10 @@ export default function ServicesManager() {
               }`}
             >
               <div className="min-w-0">
-                <p className="font-medium text-sm flex items-center gap-2">
-                  {s.nom}
+                <p className="font-medium text-sm flex items-center gap-2 min-w-0">
+                  <span className="truncate">{s.nom}</span>
                   {!s.actif && (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-gray-500/20 text-gray-400 rounded-full">
+                    <span className="text-[10px] px-1.5 py-0.5 bg-gray-500/20 text-gray-400 rounded-full shrink-0">
                       Masquée
                     </span>
                   )}
@@ -153,30 +155,34 @@ export default function ServicesManager() {
                   <p className="text-xs text-gray-500 truncate">{s.description}</p>
                 )}
               </div>
-              <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0">
+              {/* Sur mobile : prix à gauche, actions à droite sur la même
+                  ligne ; flex-wrap au cas où le prix est très long */}
+              <div className="flex flex-wrap items-center justify-between sm:justify-end gap-x-3 gap-y-1 flex-shrink-0">
                 <p className="font-mono font-semibold text-teal-400 text-sm whitespace-nowrap">
                   {s.prix.toLocaleString("fr-FR")} FCFA
                   {s.unite && s.unite !== "forfait" && (
                     <span className="text-gray-500 font-sans font-normal text-xs"> {s.unite}</span>
                   )}
                 </p>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5 sm:gap-1">
                   <button
                     onClick={() => handleToggleActif(s)}
                     title={s.actif ? "Masquer de la fiche publique" : "Réafficher"}
-                    className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                    className="p-2.5 sm:p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 active:bg-white/15 transition-colors"
                   >
                     <EyeOff className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => openEdit(s)}
-                    className="p-2 rounded-lg text-gray-400 hover:text-teal-400 hover:bg-teal-400/10 transition-colors"
+                    title="Modifier"
+                    className="p-2.5 sm:p-2 rounded-lg text-gray-400 hover:text-teal-400 hover:bg-teal-400/10 active:bg-teal-400/15 transition-colors"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(s.id)}
-                    className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    title="Supprimer"
+                    className="p-2.5 sm:p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 active:bg-red-500/15 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -187,14 +193,17 @@ export default function ServicesManager() {
         </div>
       )}
 
-      {/* Formulaire ajout / édition */}
+      {/* Formulaire ajout / édition — bottom sheet sur mobile, modal centrée
+          sur desktop */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4">
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setIsFormOpen(false)}
           />
-          <div className="relative bg-[#0a0a0a] border border-white/10 rounded-t-2xl sm:rounded-2xl p-5 md:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          {/* dvh : tient compte de la barre d'adresse mobile ;
+              pb-8 : le bouton n'est pas collé au bord bas de l'écran */}
+          <div className="relative bg-[#0a0a0a] border border-white/10 rounded-t-2xl sm:rounded-2xl p-5 pb-8 sm:pb-6 md:p-6 w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain">
             <div className="sm:hidden w-10 h-1 bg-white/20 rounded-full mx-auto mb-4" />
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-white">
@@ -203,6 +212,7 @@ export default function ServicesManager() {
               <button
                 className="p-2 rounded-full hover:bg-white/10 transition-colors"
                 onClick={() => setIsFormOpen(false)}
+                aria-label="Fermer"
               >
                 <X className="w-5 h-5 text-gray-400" />
               </button>
@@ -243,7 +253,9 @@ export default function ServicesManager() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* 1 colonne sur très petit écran (le select "par personne"
+                  a besoin de largeur), 2 colonnes dès 400px+ */}
+              <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1.5">Prix (FCFA)</label>
                   <input
