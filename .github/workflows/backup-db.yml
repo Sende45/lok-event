@@ -32,7 +32,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Installer le client PostgreSQL 17
+      - name: Installer le client PostgreSQL 18
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -sSf -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
@@ -40,13 +40,17 @@ jobs:
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
             | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-17
+          sudo apt-get install -y -qq postgresql-client-18
+          /usr/lib/postgresql/18/bin/pg_dump --version
 
       - name: Dump de la base
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
         run: |
-          pg_dump "$DATABASE_URL" \
+          # Chemin complet : le runner GitHub embarque un vieux pg_dump 16
+          # qui prend le dessus dans le PATH — on force la version 18,
+          # qui doit être >= à la version du serveur (Render = Postgres 18).
+          /usr/lib/postgresql/18/bin/pg_dump "$DATABASE_URL" \
             --format=custom \
             --no-owner \
             --no-privileges \
