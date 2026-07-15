@@ -1,13 +1,140 @@
-// Exemple de génération dynamique avec Next.js
-export async function getServerSideProps() {
-  const prestataires = await getPrestataires(); // Votre logique de récupération
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
   
-  const urls = prestataires.map(p => ({
-    url: `https://lok-event.vercel.app/prestataire/${p.slug}`,
-    lastmod: new Date(p.updatedAt).toISOString().split('T')[0],
-    changefreq: 'weekly',
-    priority: '0.8'
-  }));
+  <!-- ==================== PAGES STATIQUES ==================== -->
   
-  return { props: { urls } };
-}
+  <!-- Page d'accueil -->
+  <url>
+    <loc>https://lok-event.vercel.app/</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://lok-event.vercel.app/"/>
+  </url>
+
+  <!-- Page de connexion -->
+  <url>
+    <loc>https://lok-event.vercel.app/connexion</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Page d'inscription -->
+  <url>
+    <loc>https://lok-event.vercel.app/inscription</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Page "Devenir prestataire" -->
+  <url>
+    <loc>https://lok-event.vercel.app/devenir-prestataire</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Page "Splash" (si présente) -->
+  <url>
+    <loc>https://lok-event.vercel.app/splash</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- ==================== PAGES DE CATÉGORIES ==================== -->
+  
+  <!-- Catégorie : Décoration -->
+  <url>
+    <loc>https://lok-event.vercel.app/categories/decoration</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Catégorie : DJ & Animation -->
+  <url>
+    <loc>https://lok-event.vercel.app/categories/dj-animation</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Catégorie : DJ & Musique -->
+  <url>
+    <loc>https://lok-event.vercel.app/categories/dj-musique</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Catégorie : Photographie -->
+  <url>
+    <loc>https://lok-event.vercel.app/categories/photographie</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Catégorie : Salles & Espaces -->
+  <url>
+    <loc>https://lok-event.vercel.app/categories/salles-espaces</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Catégorie : Traiteurs -->
+  <url>
+    <loc>https://lok-event.vercel.app/categories/traiteurs</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- ==================== PAGES PRESTATAIRES (DYNAMIQUES) ==================== -->
+  
+  <!-- Exemple pour le prestataire actuel "ASSOUMANDJI" -->
+  <url>
+    <loc>https://lok-event.vercel.app/prestataire/assoumandji</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://lok-event.vercel.app/images/prestataires/assoumandji.jpg</image:loc>
+      <image:title>ASSOUMANDJI - Prestataire événementiel à Abidjan</image:title>
+    </image:image>
+  </url>
+
+  <!-- ==================== PAGES DE RECHERCHE ET FILTRES ==================== -->
+  
+  <!-- Recherche avec filtres (page dynamique) -->
+  <url>
+    <loc>https://lok-event.vercel.app/recherche</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Vue liste des prestataires -->
+  <url>
+    <loc>https://lok-event.vercel.app/prestataires/liste</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Vue carte des prestataires -->
+  <url>
+    <loc>https://lok-event.vercel.app/prestataires/carte</loc>
+    <lastmod>2026-07-15</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+</urlset>
