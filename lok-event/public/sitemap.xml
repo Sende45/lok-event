@@ -1,0 +1,13 @@
+// Exemple de génération dynamique avec Next.js
+export async function getServerSideProps() {
+  const prestataires = await getPrestataires(); // Votre logique de récupération
+  
+  const urls = prestataires.map(p => ({
+    url: `https://lok-event.vercel.app/prestataire/${p.slug}`,
+    lastmod: new Date(p.updatedAt).toISOString().split('T')[0],
+    changefreq: 'weekly',
+    priority: '0.8'
+  }));
+  
+  return { props: { urls } };
+}
