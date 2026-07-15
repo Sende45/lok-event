@@ -1,10 +1,17 @@
+// backend/src/controllers/auth.controller.ts
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
 
-const generateToken = (id: string, role: string) =>
-  jwt.sign({ id, role }, process.env.JWT_SECRET!, { expiresIn: "7d" });
+// La tokenVersion est embarquée dans chaque JWT : le middleware protect la
+// compare à celle en base à chaque requête. Incrémenter la version en base
+// tue instantanément TOUS les tokens existants du compte (vol de session,
+// déconnexion globale, bannissement ciblé...).
+const generateToken = (id: string, role: string, tokenVersion: number) =>
+  jwt.sign({ id, role, tokenVersion }, process.env.JWT_SECRET!, {
+    expiresIn: "7d",
+  });
 
 // Seuls ces rôles peuvent être choisis via l'inscription publique.
 // ADMIN ne peut JAMAIS être créé par cette route — uniquement via le script de seed.
@@ -28,7 +35,7 @@ export const register = async (req: Request, res: Response) => {
       data: { nom, prenom, email, motDePasse: hash, telephone, role: roleFinal },
     });
     res.status(201).json({
-      token: generateToken(user.id, user.role),
+      token: generateToken(user.id, user.role, user.tokenVersion),
       user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role },
     });
   } catch (error) {
@@ -45,7 +52,7 @@ export const login = async (req: Request, res: Response) => {
       return;
     }
     res.json({
-      token: generateToken(user.id, user.role),
+      token: generateToken(user.id, user.role, user.tokenVersion),
       user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role },
     });
   } catch (error) {
@@ -60,6 +67,28 @@ export const getMe = async (req: any, res: Response) => {
       select: { id: true, nom: true, prenom: true, email: true, telephone: true, role: true, avatar: true },
     });
     res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: "Erreur serveur", error });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /auth/logout-all — "Se déconnecter de tous les appareils"
+// Incrémente la tokenVersion : tous les JWT existants de ce compte (y compris
+// celui utilisé pour cet appel) deviennent immédiatement invalides.
+// Cas d'usage : l'utilisateur suspecte un vol de session, un appareil perdu,
+// un ordinateur partagé... Route à protéger avec le middleware protect.
+// ─────────────────────────────────────────────────────────────────────────────
+export const logoutAll = async (req: any, res: Response) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { tokenVersion: { increment: 1 } },
+    });
+    res.json({
+      message:
+        "Vous avez été déconnecté de tous les appareils. Reconnectez-vous pour continuer.",
+    });
   } catch (error) {
     res.status(500).json({ message: "Erreur serveur", error });
   }
