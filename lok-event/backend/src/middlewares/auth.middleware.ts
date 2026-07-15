@@ -22,6 +22,7 @@ export const protect = async (
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
       id: string;
       role: string;
+      tokenVersion?: number;
       email?: string;
     };
 
@@ -29,11 +30,9 @@ export const protect = async (
     // Le token seul ne suffit pas : un compte supprimé ou banni garderait
     // sinon l'accès jusqu'à l'expiration du JWT (7 jours). Ce lookup par
     // clé primaire est indexé et coûte < 1 ms — négligeable.
-    // Bonus : le rôle et l'email sont lus depuis la BASE, pas depuis le
-    // token — une révocation de rôle prend effet immédiatement.
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: { id: true, email: true, role: true, actif: true },
+      select: { id: true, email: true, role: true, actif: true, tokenVersion: true },
     });
 
     if (!user) {
@@ -48,6 +47,23 @@ export const protect = async (
       return;
     }
 
+    // ── Révocation de session (anti vol de token) ─────────────────────────
+    // Chaque JWT embarque la tokenVersion au moment de sa création.
+    // Si elle ne correspond plus à celle en base (incrémentée par une
+    // "déconnexion de tous les appareils" ou par un admin), le token est
+    // mort — même s'il n'a pas expiré. Un token volé devient révocable.
+    // NB : les anciens tokens émis AVANT cette mise à jour n'ont pas de
+    // tokenVersion → decoded.tokenVersion vaut undefined → rejetés →
+    // tout le monde se reconnecte une fois au déploiement, c'est voulu.
+    if (decoded.tokenVersion !== user.tokenVersion) {
+      res.status(401).json({
+        message: "Session expirée. Veuillez vous reconnecter.",
+      });
+      return;
+    }
+
+    // Rôle et email lus depuis la BASE, pas depuis le token :
+    // une révocation de rôle prend effet immédiatement.
     req.user = {
       id: user.id,
       role: user.role,

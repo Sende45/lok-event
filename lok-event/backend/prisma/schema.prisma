@@ -57,6 +57,7 @@ model User {
   reservations Reservation[]
   avis         Avis[]
   actif        Boolean       @default(true)
+  tokenVersion Int @default(0)
   favoris      Favori[]
   notifications Notification[]
   abonnements  Abonnement[]
