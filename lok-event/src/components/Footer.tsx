@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
-  Sparkles,
   MapPin,
   Phone,
   Heart,
@@ -20,11 +20,14 @@ export default function Footer() {
       <div className="relative max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-16">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 mb-12">
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-8 h-8 text-teal-400" />
-              <span className="text-2xl font-bold tracking-tight text-white">
-                LOK<span className="text-teal-400">EVENT</span>
-              </span>
+            <div className="mb-4">
+              <Image
+                src="https://i.ibb.co/VYyncCxz/LOK-EVENT-LOGO-blanc.jpg"
+                alt="LOKEVENT"
+                width={160}
+                height={52}
+                className="h-11 w-auto object-contain"
+              />
             </div>
             <p className="text-sm text-gray-400 mb-4 max-w-xs">
               L'excellence événementielle en Côte d'Ivoire. Découvrez les meilleurs prestataires pour vos événements.
