@@ -24,9 +24,9 @@ export default function Footer() {
               <Image
                 src="https://i.ibb.co/VYyncCxz/LOK-EVENT-LOGO-blanc.jpg"
                 alt="LOKEVENT"
-                width={160}
-                height={52}
-                className="h-11 w-auto object-contain"
+                width={400}
+                height={130}
+                className="h-14 md:h-16 w-auto object-contain"
               />
             </div>
             <p className="text-sm text-gray-400 mb-4 max-w-xs">
