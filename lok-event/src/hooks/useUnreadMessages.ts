@@ -2,7 +2,8 @@
 //
 // Compteur de messages non lus, partagé entre l'accueil (SearchBar) et les
 // dashboards client / prestataire. Même philosophie que useNotifications :
-//   - chargement initial via l'API
+//   - chargement initial via l'API (/conversations/unread-count — le routeur
+//     message.routes est monté sur /api/conversations dans app.ts)
 //   - temps réel via le socket partagé (événement "newMessage" émis par le
 //     backend vers la room du destinataire dans sendMessage)
 //   - polling léger toutes les 30s en filet de sécurité si le socket tombe
@@ -23,7 +24,7 @@ export function useUnreadMessages(enabled: boolean = true) {
   const refresh = useCallback(async () => {
     if (!enabled) return;
     try {
-      const res = await api.get<{ unreadCount: number }>("/messages/unread-count");
+      const res = await api.get<{ unreadCount: number }>("/conversations/unread-count");
       setUnreadCount(res.unreadCount);
     } catch {
       /* silencieux : le badge n'est pas critique */
