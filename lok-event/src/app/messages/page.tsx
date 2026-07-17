@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Send, MessageSquare, Home } from "lucide-react";
-import { io, Socket } from "socket.io-client";
+import { getSocket } from "@/lib/socket";
 import { api } from "@/lib/api";
 
 interface Sender {
@@ -61,7 +61,6 @@ function MessagesContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
 
-  const socketRef = useRef<Socket | null>(null);
   const selectedIdRef = useRef<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -101,21 +100,18 @@ function MessagesContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, conversationParam]);
 
-  // Connexion Socket.io pour recevoir les messages en temps réel
+  // Connexion Socket.io pour recevoir les messages en temps réel.
+  // ⚠️ On utilise le socket PARTAGÉ (lib/socket.ts) : authentifié par JWT
+  // et en websocket direct (le polling casse derrière le proxy de Render).
+  // On ne crée plus de socket local ici, et on ne déconnecte JAMAIS le
+  // socket partagé au démontage — on retire uniquement nos listeners.
   useEffect(() => {
     if (!userId) return;
 
-    const socketUrl = (
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-    ).replace(/\/api\/?$/, "");
+    const socket = getSocket();
+    if (!socket) return;
 
-    const socket = io(socketUrl, { reconnection: true, reconnectionAttempts: 5 });
-    socketRef.current = socket;
-
-    socket.emit("join", userId);
-    socket.on("connect", () => socket.emit("join", userId));
-
-    socket.on("newMessage", (message: Message) => {
+    const onNewMessage = (message: Message) => {
       // Message de la conversation ouverte : on l'affiche directement
       if (message.conversationId === selectedIdRef.current) {
         setMessages((prev) => [...prev, message]);
@@ -139,11 +135,12 @@ function MessagesContent() {
           (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
         );
       });
-    });
+    };
+
+    socket.on("newMessage", onNewMessage);
 
     return () => {
-      socket.disconnect();
-      socketRef.current = null;
+      socket.off("newMessage", onNewMessage);
     };
   }, [userId]);
 
