@@ -24,6 +24,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
+import MessageBadge from "@/components/messages/MessageBadge";
 
 interface UserData {
   id: string;
@@ -77,6 +79,7 @@ function dateKey(d: Date): string {
 export default function ClientDashboard() {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const unreadMessages = useUnreadMessages();
   const [user, setUser] = useState<UserData | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -280,7 +283,10 @@ export default function ClientDashboard() {
                 href="/messages"
                 className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-teal-400 transition-colors"
               >
-                <MessageSquare className="w-4 h-4" />
+                <span className="relative">
+                  <MessageSquare className="w-4 h-4" />
+                  <MessageBadge count={unreadMessages} />
+                </span>
                 <span className="text-sm">Messages</span>
               </Link>
               <button
@@ -325,8 +331,16 @@ export default function ClientDashboard() {
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-white/5 active:bg-white/10 transition-colors"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  <MessageSquare className="w-5 h-5" />
+                  <span className="relative">
+                    <MessageSquare className="w-5 h-5" />
+                    <MessageBadge count={unreadMessages} />
+                  </span>
                   <span>Messages</span>
+                  {unreadMessages > 0 && (
+                    <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 font-semibold">
+                      {unreadMessages}
+                    </span>
+                  )}
                 </Link>
                 <button
                   onClick={handleLogout}

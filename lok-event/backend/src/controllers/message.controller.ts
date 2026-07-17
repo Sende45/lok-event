@@ -191,3 +191,29 @@ export const sendMessage = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Erreur serveur", error });
   }
 };
+// Nombre total de messages non lus de l'utilisateur (côté client ET côté prestataire)
+export const getUnreadMessagesCount = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const profilPrestataire = await prisma.prestataire.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    const unreadCount = await prisma.message.count({
+      where: {
+        lu: false,
+        senderId: { not: userId },
+        conversation: profilPrestataire
+          ? { OR: [{ clientId: userId }, { prestataireId: profilPrestataire.id }] }
+          : { clientId: userId },
+      },
+    });
+
+    res.json({ unreadCount });
+  } catch (error) {
+    console.error("Erreur comptage messages non lus:", error);
+    res.status(500).json({ message: "Erreur serveur", error });
+  }
+};

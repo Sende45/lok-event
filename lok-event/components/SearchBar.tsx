@@ -7,6 +7,8 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
+import MessageBadge from "@/components/messages/MessageBadge";
 
 interface User {
   id: string;
@@ -90,6 +92,7 @@ export default function SearchBar() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const unreadMessages = useUnreadMessages(!!user);
 
   const [searchValue, setSearchValue] = useState("");
   const [locationValue, setLocationValue] = useState("");
@@ -420,9 +423,10 @@ export default function SearchBar() {
             <Link
               href="/messages"
               title="Messages"
-              className="p-3 rounded-full hover:bg-white/10 active:bg-white/15 transition-colors"
+              className="relative p-3 rounded-full hover:bg-white/10 active:bg-white/15 transition-colors"
             >
               <MessageSquare className="w-5 h-5 text-gray-300" />
+              <MessageBadge count={unreadMessages} />
             </Link>
             <NotificationBell userId={user.id} />
             <button
@@ -469,8 +473,16 @@ export default function SearchBar() {
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 transition-colors"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <MessageSquare className="w-4 h-4 text-teal-400" />
+                      <span className="relative">
+                        <MessageSquare className="w-4 h-4 text-teal-400" />
+                        <MessageBadge count={unreadMessages} />
+                      </span>
                       Messages
+                      {unreadMessages > 0 && (
+                        <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 font-semibold">
+                          {unreadMessages} nouveau{unreadMessages > 1 ? "x" : ""}
+                        </span>
+                      )}
                     </Link>
 
                     {user.role === "CLIENT" && (
