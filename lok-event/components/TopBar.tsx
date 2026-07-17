@@ -30,6 +30,7 @@ export default function TopBar() {
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
+
     >
       {/* Barre principale : hauteur fixe et maîtrisée */}
       <div className="px-4 md:px-8 h-14 md:h-20 flex items-center justify-between text-[11px] text-gray-400 uppercase tracking-wider">
@@ -41,7 +42,7 @@ export default function TopBar() {
              alt="LOKEVENT"
              width={400}
              height={130}
-             className="h-9 md:h-14 w-auto object-contain"
+             className="h-11 md:h-16 w-auto object-contain"
              priority
             />
           </motion.div>
