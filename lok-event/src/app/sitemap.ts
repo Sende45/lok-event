@@ -1,8 +1,10 @@
 import { MetadataRoute } from "next";
 
-// ⚠️ Quand tu auras ton vrai domaine (lokevent.ci / lokevent.com),
-// remplace BASE_URL ici ET resoumets le sitemap dans Search Console.
-const BASE_URL = "https://lok-event.vercel.app";
+// Domaine officiel du site (sous-domaine branché sur Vercel).
+// ⚠️ Si un jour tu passes sur lokevent.ci / lokevent.com :
+// remplace BASE_URL ici ET dans robots.ts, puis resoumets le
+// sitemap dans Search Console.
+const BASE_URL = "https://lokevent.eden-group.co";
 
 // NEXT_PUBLIC_API_URL contient déjà le /api final
 // (ex: https://lok-event.onrender.com/api)
