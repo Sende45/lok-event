@@ -1,6 +1,7 @@
 import { MetadataRoute } from "next";
 
-const BASE_URL = "https://lok-event.vercel.app";
+// Doit rester identique au BASE_URL de sitemap.ts
+const BASE_URL = "https://lokevent.eden-group.co";
 
 export default function robots(): MetadataRoute.Robots {
   return {
