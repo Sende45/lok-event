@@ -52,6 +52,10 @@ if (process.env.NODE_ENV !== "test") {
 
 const allowedOrigins = [
   "http://localhost:3000",
+  // Domaine de production actuel (sous-domaine OVH branché sur Vercel)
+  "https://lokevent.eden-group.co",
+  // Ancienne URL Vercel — encore active, on la garde le temps de la transition
+  "https://lok-event.vercel.app",
   process.env.FRONTEND_URL,
 ].filter(Boolean) as string[];
 
