@@ -1,4 +1,3 @@
-// src/app/layout.tsx
 import "@/styles/globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -6,21 +5,18 @@ import Footer from "@/components/Footer";
 import TopBar from "@/components/TopBar";
 import { ThemeProvider } from "@/lib/ThemeContext";
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ["latin"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  // Base pour toutes les URLs relatives des métadonnées (og:url, canonical…)
   metadataBase: new URL("https://lokevent.eden-group.co"),
   title: "LOKEVENT - L'excellence événementielle en Côte d'Ivoire",
   description: "Découvrez les meilleurs prestataires pour vos événements : traiteurs, salles, photographes, DJ et plus encore en Côte d'Ivoire.",
   keywords: "événementiel, Côte d'Ivoire, traiteurs, salles, photographie, mariage, gala",
   authors: [{ name: "LOKEVENT" }],
   alternates: {
-    // URL canonique : indique à Google que c'est LA version officielle,
-    // même si le site reste accessible via lok-event.vercel.app
     canonical: "https://lokevent.eden-group.co",
   },
   openGraph: {
@@ -40,7 +36,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className="scroll-smooth">
-      <body className={`${inter.className} antialiased min-h-screen bg-[#0a0a0a]`}>
+      <head>
+        {/* Anti-flash : applique le thème mémorisé AVANT le rendu,
+            pour éviter un clignotement sombre → clair au chargement */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem('lokevent_theme')==='light')document.documentElement.classList.add('light')}catch(e){}`,
+          }}
+        />
+      </head>
+      {/* Le fond du body suit désormais le token : #050505 en sombre, gris clair en light */}
+      <body className={`${inter.className} antialiased min-h-screen bg-[var(--color-background)] text-[var(--color-on-surface)]`}>
         <ThemeProvider>
           {/* Le fond fixe qui ne bouge pas et ne bloque pas les animations */}
           <div className="fixed inset-0 -z-10 global-bg" />
