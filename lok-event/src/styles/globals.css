@@ -71,6 +71,12 @@ html.light .global-bg {
   background: var(--background-gradient);
 }
 
+/* le grand fond de page (main en bg-[#050505]) → GRIS clair, pas blanc.
+   C'est lui qui créait la bande noire derrière le titre et la grille. */
+html.light .bg-\[\#050505\] {
+  background-color: #EBEEF2 !important;
+}
+
 /* surfaces sombres → blanc (elles se détachent sur le fond gris) */
 html.light .bg-\[\#0a0a0a\],
 html.light .bg-black\/40,
