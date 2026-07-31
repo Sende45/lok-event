@@ -21,12 +21,21 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 mb-12">
           <div>
             <div className="mb-4">
+              {/* Logo blanc — visible en mode sombre */}
               <Image
                 src="https://i.ibb.co/VYyncCxz/LOK-EVENT-LOGO-blanc.jpg"
                 alt="LOKEVENT"
                 width={400}
                 height={130}
-                className="h-14 md:h-16 w-auto object-contain"
+                className="h-14 md:h-16 w-auto object-contain block dark-logo"
+              />
+              {/* Logo foncé — visible en mode clair */}
+              <Image
+                src="/images/logo-dark.svg"
+                alt="LOKEVENT"
+                width={400}
+                height={130}
+                className="h-14 md:h-16 w-auto object-contain hidden light-logo"
               />
             </div>
             <p className="text-sm text-gray-400 mb-4 max-w-xs">
