@@ -4,15 +4,16 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Home, 
+import {
+  Home,
   Sparkles,
-  Briefcase, 
-  Phone, 
+  Briefcase,
+  Phone,
   Menu,
   X
 } from 'lucide-react';
 import { useState } from 'react';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function TopBar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -25,12 +26,11 @@ export default function TopBar() {
   ];
 
   return (
-    <motion.header 
+    <motion.header
       className="sticky top-0 z-50 border-b border-white/10 bg-[#0a0a0a] shadow-lg shadow-black/50"
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-
     >
       {/* Barre principale : hauteur fixe et maîtrisée */}
       <div className="px-4 md:px-8 h-14 md:h-20 flex items-center justify-between text-[11px] text-gray-400 uppercase tracking-wider">
@@ -59,11 +59,11 @@ export default function TopBar() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Link 
-                  href={item.href} 
+                <Link
+                  href={item.href}
                   className={`group relative flex items-center gap-2 transition-all duration-300 ${
-                    actif 
-                      ? 'text-teal-400 font-medium' 
+                    actif
+                      ? 'text-teal-400 font-medium'
                       : 'text-gray-400 hover:text-white'
                   }`}
                 >
@@ -72,13 +72,13 @@ export default function TopBar() {
                   }`} />
                   <span className="relative">
                     {item.label}
-                    <motion.span 
+                    <motion.span
                       className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-teal-400"
                       whileHover={{ width: "100%" }}
                       transition={{ duration: 0.3 }}
                     />
                     {actif && (
-                      <motion.span 
+                      <motion.span
                         className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-teal-400"
                         layoutId="activeDot"
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -93,7 +93,10 @@ export default function TopBar() {
 
         {/* Contact & Statut - Desktop */}
         <div className="hidden md:flex items-center gap-6">
-          <motion.a 
+          {/* Bouton thème clair / sombre */}
+          <ThemeToggle />
+
+          <motion.a
             href="tel:+2250768756151"
             className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors group"
             whileHover={{ scale: 1.05 }}
@@ -102,16 +105,16 @@ export default function TopBar() {
             <span className="text-[10px]">+225 07 68 75 61 51</span>
           </motion.a>
 
-          <motion.div 
+          <motion.div
             className="flex items-center gap-2 text-teal-400 px-3 py-1 rounded-full bg-teal-400/10 border border-teal-400/20"
-            whileHover={{ 
+            whileHover={{
               scale: 1.05,
               backgroundColor: "rgba(20, 184, 166, 0.2)",
               borderColor: "rgba(20, 184, 166, 0.4)",
             }}
           >
             <span className="relative flex h-2 w-2">
-              <motion.span 
+              <motion.span
                 className="absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"
                 animate={{
                   scale: [1, 1.5, 1],
@@ -129,8 +132,10 @@ export default function TopBar() {
           </motion.div>
         </div>
 
-        {/* Mobile : appel rapide + burger */}
+        {/* Mobile : thème + appel rapide + burger */}
         <div className="flex md:hidden items-center gap-1">
+          <ThemeToggle />
+
           <motion.a
             href="tel:+2250768756151"
             className="p-2.5 rounded-full text-teal-400 hover:bg-white/10 active:bg-white/15 transition-colors"
@@ -139,7 +144,7 @@ export default function TopBar() {
           >
             <Phone className="w-5 h-5" />
           </motion.a>
-          <motion.button 
+          <motion.button
             className="p-2.5 rounded-full text-white/60 hover:text-white hover:bg-white/10 active:bg-white/15 transition-colors"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             whileTap={{ scale: 0.9 }}
@@ -154,7 +159,7 @@ export default function TopBar() {
           au lieu de flotter par-dessus, et suit la hauteur réelle de la barre */}
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <motion.div 
+          <motion.div
             className="md:hidden overflow-hidden bg-[#0a0a0a] border-t border-white/5"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -171,11 +176,11 @@ export default function TopBar() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
                   >
-                    <Link 
+                    <Link
                       href={item.href}
                       className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 ${
-                        actif 
-                          ? 'bg-teal-400/10 text-teal-400 border border-teal-400/20' 
+                        actif
+                          ? 'bg-teal-400/10 text-teal-400 border border-teal-400/20'
                           : 'text-gray-400 hover:text-white hover:bg-white/5 active:bg-white/10'
                       }`}
                       onClick={() => setIsMobileMenuOpen(false)}
@@ -183,7 +188,7 @@ export default function TopBar() {
                       <item.icon className={`w-4 h-4 ${actif ? 'text-teal-400' : ''}`} />
                       <span className="text-sm font-medium normal-case tracking-normal">{item.label}</span>
                       {actif && (
-                        <motion.div 
+                        <motion.div
                           className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400"
                           animate={{ scale: [1, 1.5, 1] }}
                           transition={{ duration: 2, repeat: Infinity }}
@@ -195,7 +200,7 @@ export default function TopBar() {
               })}
 
               <div className="border-t border-white/5 my-2 pt-3 flex items-center justify-between px-4">
-                <a 
+                <a
                   href="tel:+2250768756151"
                   className="flex items-center gap-3 py-2 text-gray-400 hover:text-white transition-colors"
                 >
