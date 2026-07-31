@@ -7,7 +7,7 @@
   --color-background: #050505;
   --color-surface: #0a0a0a;
   --color-on-surface: #ffffff;
-  
+
   /* Typographie */
   --font-display: 'Montserrat', sans-serif;
   --font-sans: 'Inter', sans-serif;
@@ -58,7 +58,6 @@
 
 /* ===== MODE CLAIR — palette grise "éclairée" ===== */
 html.light {
-  /* la page passe en GRIS (et non blanc) → les surfaces blanches ressortent */
   --color-background: #EBEEF2;
   --color-surface: #FFFFFF;
   --color-on-surface: #131720;
@@ -66,13 +65,11 @@ html.light {
   background-color: var(--color-background);
 }
 
-/* le fond fixe doit repasser en clair, sinon le dégradé sombre reste visible */
 html.light .global-bg {
   background: var(--background-gradient);
 }
 
-/* le grand fond de page (main en bg-[#050505]) → GRIS clair, pas blanc.
-   C'est lui qui créait la bande noire derrière le titre et la grille. */
+/* le grand fond de page (main en bg-[#050505]) → GRIS clair, pas blanc */
 html.light .bg-\[\#050505\] {
   background-color: #EBEEF2 !important;
 }
@@ -142,19 +139,20 @@ html.light ::-webkit-scrollbar-thumb:hover {
 
 /* ===== MODE CLAIR — retouches de contraste ===== */
 
-/* Logo blanc → visible sur fond clair (invert + hue-rotate garde le turquoise) */
-html.light img[alt="LOKEVENT"] {
-  filter: invert(1) hue-rotate(180deg);
-}
+/* Bascule de logo : le blanc se masque, le foncé s'affiche */
+html.light .dark-logo { display: none; }
+html.light .light-logo { display: block; }
 
 /* Le header se détache du fond gris */
 html.light header {
   box-shadow: 0 1px 3px rgba(20, 30, 45, 0.08);
 }
 
-/* Le mot "CATÉGORIES" (gris très clair d'origine) → gris lisible sur fond clair.
-   Couvre les classes de gris pâle utilisées pour ce libellé. */
+/* Le mot "CATÉGORIES" reste trop pâle → gris lisible */
 html.light .text-gray-200,
-html.light .text-gray-100 {
+html.light .text-gray-100,
+html.light .text-white\/40,
+html.light .text-white\/50,
+html.light .text-white\/60 {
   color: #6B7480 !important;
 }
