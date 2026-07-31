@@ -23,7 +23,7 @@ export default function Footer() {
             <div className="mb-4">
               {/* Logo blanc — visible en mode sombre */}
               <Image
-                src="https://i.ibb.co/VYyncCxz/LOK-EVENT-LOGO-blanc.jpg"
+                src="/images/logo.svg"
                 alt="LOKEVENT"
                 width={400}
                 height={130}
