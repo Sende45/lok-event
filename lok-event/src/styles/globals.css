@@ -156,3 +156,53 @@ html.light .text-white\/50,
 html.light .text-white\/60 {
   color: #6B7480 !important;
 }
+
+/* ===== MODE CLAIR — turquoise assombri pour la lisibilité sur blanc ===== */
+
+/* Le token de marque passe à un turquoise plus profond en clair */
+html.light {
+  --color-primary: #0d9488;
+}
+
+/* Textes turquoise → foncé */
+html.light .text-teal-300,
+html.light .text-teal-400,
+html.light .text-teal-500 {
+  color: #0d9488 !important;
+}
+
+/* Fonds turquoise pleins (boutons "Autour de moi", "Tout", etc.) → foncé */
+html.light .bg-teal-400,
+html.light .bg-teal-500 {
+  background-color: #0d9488 !important;
+}
+
+/* Hovers de fonds turquoise */
+html.light .hover\:bg-teal-300:hover,
+html.light .hover\:bg-teal-500:hover {
+  background-color: #0f766e !important;
+}
+
+/* Dégradés turquoise (boutons S'inscrire, avatars…) → variante foncée */
+html.light .from-teal-400 { --tw-gradient-from: #0d9488 !important; }
+html.light .to-teal-500   { --tw-gradient-to:   #0f766e !important; }
+html.light .to-teal-600   { --tw-gradient-to:   #115e59 !important; }
+
+/* Bordures turquoise → foncé */
+html.light .border-teal-400,
+html.light .border-teal-400\/20,
+html.light .border-teal-400\/50 {
+  border-color: #0d9488 !important;
+}
+
+/* Fonds turquoise translucides (badges, pastilles) → teinte foncée légère */
+html.light .bg-teal-400\/10,
+html.light .bg-teal-400\/20,
+html.light .bg-teal-500\/20 {
+  background-color: rgba(13, 148, 136, 0.12) !important;
+}
+
+/* Icônes / formes SVG en fill turquoise (étoiles, points animés…) */
+html.light .fill-teal-400 {
+  fill: #0d9488 !important;
+}
