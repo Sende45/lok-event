@@ -37,13 +37,23 @@ export default function TopBar() {
         {/* Logo / Brand */}
         <Link href="/" className="flex-shrink-0">
           <motion.div whileHover={{ scale: 1.02 }}>
+            {/* Logo clair (texte blanc) — visible en mode sombre */}
             <Image
-             src="/images/logo.svg"
-             alt="LOKEVENT"
-             width={400}
-             height={130}
-             className="h-11 md:h-16 w-auto object-contain"
-             priority
+              src="/images/logo.svg"
+              alt="LOKEVENT"
+              width={400}
+              height={130}
+              className="h-11 md:h-16 w-auto object-contain block dark-logo"
+              priority
+            />
+            {/* Logo sombre (texte foncé) — visible en mode clair */}
+            <Image
+              src="/images/logo-dark.svg"
+              alt="LOKEVENT"
+              width={400}
+              height={130}
+              className="h-11 md:h-16 w-auto object-contain hidden light-logo"
+              priority
             />
           </motion.div>
         </Link>
