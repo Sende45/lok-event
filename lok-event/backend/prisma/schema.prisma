@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // Neon — URL "pooled" (host avec -pooler)
+  directUrl = env("DIRECT_URL")   // Neon — URL directe (db push, pg_dump)
 }
 
 enum Role {

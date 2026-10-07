@@ -1,3 +1,5 @@
+/// <reference types="node" />
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -65,7 +67,13 @@ async function seedAdmin() {
     return;
   }
 
-  const motDePasseTemporaire = "Yohane#0719306560Nour";
+  // Mot de passe lu depuis le .env — jamais écrit dans le code (dépôt public)
+  const motDePasseTemporaire = process.env.ADMIN_SEED_PASSWORD;
+  if (!motDePasseTemporaire || motDePasseTemporaire.length < 12) {
+    throw new Error(
+      "ADMIN_SEED_PASSWORD manquant ou trop court (12 caractères minimum) dans le .env"
+    );
+  }
   const hash = await bcrypt.hash(motDePasseTemporaire, 12);
 
   const admin = await prisma.user.create({
@@ -79,7 +87,7 @@ async function seedAdmin() {
   });
 
   console.log("Admin créé :", admin.email);
-  console.log("Mot de passe temporaire :", motDePasseTemporaire);
+  console.log("Connecte-toi avec le mot de passe défini dans ADMIN_SEED_PASSWORD.");
 }
 
 async function main() {
