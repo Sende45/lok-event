@@ -3,7 +3,7 @@
 import {
   BarChart3, Users, Briefcase, Calendar, LogOut, Menu, X, DollarSign,
   Check, AlertCircle, Tag as TagIcon, FolderTree, Plus, Edit2, Trash2, Power,
-  RefreshCw, Crown,
+  RefreshCw, Crown, Megaphone,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
@@ -14,6 +14,7 @@ import {
   Tooltip, Legend, CartesianGrid,
 } from "recharts";
 import { api } from "@/lib/api";
+   import AdminPublicites from "@/components/dashboard/AdminPublicites";
 
 interface EvolutionMois {
   mois: string;
@@ -135,6 +136,7 @@ const tabs = [
   { id: "users", label: "Utilisateurs", icon: Users },
   { id: "categories", label: "Catégories", icon: FolderTree },
   { id: "tags", label: "Tags", icon: TagIcon },
+  { id: "publicites", label: "Publicités", icon: Megaphone },
 ];
 
 /** Format compact des montants FCFA pour les axes du graphique (1,5M / 250k) */
@@ -1073,6 +1075,7 @@ export default function AdminDashboard() {
             ))}
           </motion.div>
         )}
+      {activeTab === "publicites" && <AdminPublicites />}
       </main>
     </div>
   );
