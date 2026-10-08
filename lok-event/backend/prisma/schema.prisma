@@ -69,6 +69,7 @@ model User {
   abonnements  Abonnement[]
   conversationsClient Conversation[] @relation("ConversationsClient")
   messagesEnvoyes     Message[]      @relation("MessagesEnvoyes")
+  codesReinitialisation CodeReinitialisation[]
 
   @@map("users")
 }
@@ -305,4 +306,19 @@ model Publicite {
 
   @@index([emplacement, actif])
   @@map("publicites")
+}
+
+// Codes à 6 chiffres envoyés par email pour réinitialiser un mot de passe
+model CodeReinitialisation {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash   String // le code n'est jamais stocké en clair
+  expireLe   DateTime
+  tentatives Int      @default(0)
+  utilise    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@map("codes_reinitialisation")
 }
