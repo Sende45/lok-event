@@ -2,6 +2,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { getIO } from "../lib/socket";
+import { envoyerPush } from "../lib/push";
 
 // Ouvre (ou retrouve) la conversation entre le client connecté et un prestataire
 export const getOrCreateConversation = async (req: Request, res: Response) => {
@@ -185,12 +186,25 @@ export const sendMessage = async (req: Request, res: Response) => {
       console.error("Emission socket newMessage échouée:", err);
     }
 
+    // Push sur le téléphone du destinataire (pas enregistré dans la cloche :
+    // les messages ont déjà leur propre badge dans l'onglet Messages)
+    const apercu = message.contenu.length > 100 ? message.contenu.slice(0, 97) + "..." : message.contenu;
+    const nomExpediteur =
+      conversation.clientId === req.user!.id
+        ? `${message.sender.prenom} ${message.sender.nom}`.trim()
+        : conversation.prestataire.nomEntreprise || message.sender.prenom;
+    void envoyerPush(destinataireUserId, nomExpediteur, apercu, {
+      type: "MESSAGE",
+      conversationId,
+    });
+
     res.status(201).json(message);
   } catch (error) {
     console.error("Erreur envoi message:", error);
     res.status(500).json({ message: "Erreur serveur", error });
   }
 };
+
 // Nombre total de messages non lus de l'utilisateur (côté client ET côté prestataire)
 export const getUnreadMessagesCount = async (req: Request, res: Response) => {
   try {

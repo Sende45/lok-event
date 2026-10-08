@@ -5,12 +5,14 @@
 //   • MESSAGERIE  → notifierNouveauMessage(...)
 //   • RÉSERVATIONS → notifierNouvelleReservation(...), notifierStatutReservation(...),
 //                    notifierAnnulationParClient(...)
+//   • PUSH        → chaque notification part aussi sur le téléphone (lib/push.ts)
 // Les autres contrôleurs (message, reservation, prestataire) n'ont qu'à
 // importer la fonction qui les concerne et l'appeler en une ligne.
 
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { getIO } from "../lib/socket";
+import { envoyerPush, estTokenExpo } from "../lib/push";
 
 // Interface plus souple (user peut être undefined avant le middleware)
 interface AuthenticatedRequest extends Request {
@@ -186,7 +188,7 @@ export const deleteAllNotifications = async (req: AuthenticatedRequest, res: Res
 };
 
 // ==================== FONCTION UTILITAIRE DE BASE ====================
-// Crée la notification persistée + push temps réel à la room de l'utilisateur.
+// Crée la notification persistée + temps réel (socket) + push sur le téléphone.
 // Les fonctions métier ci-dessous s'appuient toutes dessus.
 export const sendNotification = async (
   userId: string,
@@ -206,12 +208,85 @@ export const sendNotification = async (
       },
     });
 
-    const io = getIO();
-    io.to(`user-${userId}`).emit("newNotification", notification);
+    try {
+      getIO().to(`user-${userId}`).emit("newNotification", notification);
+    } catch (err) {
+      console.error("Emission socket newNotification échouée:", err);
+    }
+
+    // Push sur le téléphone (même app fermée) — non bloquant
+    void envoyerPush(userId, title, message, {
+      type: String(type),
+      notificationId: notification.id,
+      ...aplatir(data),
+    });
 
     return notification;
   } catch (error) {
     console.error("Erreur envoi notification:", error);
+  }
+};
+
+// Ne garde que les valeurs simples de `data` (ids, statut...) pour le push
+function aplatir(data: unknown): Record<string, string | number | boolean> {
+  const resultat: Record<string, string | number | boolean> = {};
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    for (const [cle, valeur] of Object.entries(data as Record<string, unknown>)) {
+      if (["string", "number", "boolean"].includes(typeof valeur)) {
+        resultat[cle] = valeur as string | number | boolean;
+      }
+    }
+  }
+  return resultat;
+}
+
+// ==================== TOKENS PUSH (téléphones) ====================
+
+// POST /notifications/push-token  { token, plateforme }
+// Enregistre le téléphone de l'utilisateur connecté. Si le même téléphone
+// était lié à un autre compte (changement de compte), il est réattribué.
+export const enregistrerPushToken = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: "Non authentifié" });
+      return;
+    }
+    const { token, plateforme } = req.body ?? {};
+    if (!estTokenExpo(token)) {
+      res.status(400).json({ message: "Token push invalide" });
+      return;
+    }
+    const plateformeOk = plateforme === "ios" || plateforme === "android" ? plateforme : null;
+
+    await prisma.pushToken.upsert({
+      where: { token },
+      create: { token, userId: req.user.id, plateforme: plateformeOk },
+      update: { userId: req.user.id, plateforme: plateformeOk },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+// DELETE /notifications/push-token  { token }
+// Appelé à la déconnexion : ce téléphone ne reçoit plus les notifications.
+// Volontairement sans authentification (le jeton de session est déjà effacé
+// côté app à ce moment-là) : il faut connaître le token exact du téléphone.
+export const supprimerPushToken = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.body ?? {};
+    if (!estTokenExpo(token)) {
+      res.status(400).json({ message: "Token push invalide" });
+      return;
+    }
+    await prisma.pushToken.deleteMany({ where: { token } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 

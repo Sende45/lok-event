@@ -7,6 +7,8 @@ import {
   markAllAsRead,
   deleteNotification,
   deleteAllNotifications,
+  enregistrerPushToken,
+  supprimerPushToken,
 } from "../controllers/notification.controller";
 
 const router = Router();
@@ -17,6 +19,11 @@ router.get("/", protect, getNotifications);
 // Compteur léger pour le badge (polling du hook useNotifications)
 // ⚠️ déclaré AVANT toute route paramétrée pour ne pas être avalé par /:id
 router.get("/unread-count", protect, getUnreadCount);
+
+// ── Téléphones (notifications push) ─────────────────────────────────────
+// ⚠️ AVANT DELETE /:id, sinon "push-token" serait pris pour un id
+router.post("/push-token", protect, enregistrerPushToken);
+router.delete("/push-token", supprimerPushToken); // sans protect : voir le contrôleur
 
 // ── Marquer comme lu ─────────────────────────────────────────────────────
 // Nouvelles routes (utilisées par useNotifications) — PATCH
