@@ -70,6 +70,7 @@ model User {
   conversationsClient Conversation[] @relation("ConversationsClient")
   messagesEnvoyes     Message[]      @relation("MessagesEnvoyes")
   codesReinitialisation CodeReinitialisation[]
+    pushTokens   PushToken[]
 
   @@map("users")
 }
@@ -321,4 +322,18 @@ model CodeReinitialisation {
 
   @@index([userId])
   @@map("codes_reinitialisation")
+}
+
+// Téléphones qui reçoivent les notifications push (un utilisateur peut en avoir plusieurs)
+model PushToken {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique
+  plateforme String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@map("push_tokens")
 }
