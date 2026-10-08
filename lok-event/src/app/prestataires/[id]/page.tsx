@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, Star, MessageCircle, ArrowLeft, Heart, CheckCircle, Calendar, X, AlertCircle } from "lucide-react";
+import { MapPin, Star, MessageCircle, ArrowLeft, Heart, CheckCircle, Calendar, X, AlertCircle, Lock } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/lib/api";
 import dynamic from "next/dynamic";
@@ -53,6 +53,8 @@ interface PrestataireDetail {
   services: Service[];
   avis: Avis[];
   _count: { avis: number; reservations: number };
+  masque?: boolean; // prestataire non Premium : fiche cachée
+  photoFloue?: string | null;
 }
 
 export default function PrestataireDetailPage() {
@@ -217,6 +219,35 @@ export default function PrestataireDetailPage() {
         >
           ← Retour à l'accueil
         </button>
+      </div>
+    );
+  }
+
+  // Prestataire non Premium : fiche pas encore publique
+  if (prestataire.masque) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] relative flex items-center justify-center px-4 overflow-hidden">
+        {prestataire.photoFloue && (
+          <Image src={prestataire.photoFloue} alt="" fill className="object-cover blur-3xl scale-125 opacity-30" />
+        )}
+        <div className="relative max-w-md text-center flex flex-col items-center gap-4">
+          <span className="w-20 h-20 rounded-full bg-white/10 border border-white/25 flex items-center justify-center">
+            <Lock className="w-9 h-9 text-white" />
+          </span>
+          <h1 className="text-2xl font-bold text-white">
+            {prestataire.categorie?.nom || "Prestataire"} à {prestataire.commune || prestataire.ville}
+          </h1>
+          <p className="text-gray-400">
+            Ce prestataire est inscrit sur LOKEVENT mais sa fiche n&apos;est pas encore publique. Découvrez dès
+            maintenant les prestataires disponibles.
+          </p>
+          <button
+            onClick={() => router.push("/")}
+            className="px-5 py-2.5 rounded-full bg-teal-400 text-black font-semibold hover:bg-teal-300 transition-colors"
+          >
+            Voir les prestataires disponibles
+          </button>
+        </div>
       </div>
     );
   }

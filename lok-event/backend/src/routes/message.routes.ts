@@ -8,10 +8,12 @@ import {
   getUnreadMessagesCount,
 } from "../controllers/message.controller";
 import { protect } from "../middlewares/auth.middleware";
+import { exigerPrestataireVisible } from "../middlewares/prestataireVisible.middleware";
 
 const router = Router();
 
-router.post("/", protect, getOrCreateConversation);
+// exigerPrestataireVisible : pas de nouvelle conversation avec une fiche masquée (non Premium)
+router.post("/", protect, exigerPrestataireVisible, getOrCreateConversation);
 router.get("/", protect, getMesConversations);
 router.get("/unread-count", protect, getUnreadMessagesCount);
 router.get("/:id/messages", protect, getMessages);

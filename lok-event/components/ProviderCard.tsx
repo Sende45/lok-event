@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Star, Heart, MessageCircle, Info } from "lucide-react";
+import { MapPin, Star, Heart, MessageCircle, Info, Lock, Gem } from "lucide-react";
 import { Provider } from "../types/provider";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -74,6 +74,9 @@ export default function ProviderCard({
 
   const hasContact = Boolean(p.whatsapp || p.telephone);
 
+  // Prestataire non Premium : carte floutée, sans nom ni contact
+  if (p.masque) return <CarteMasquee p={p} />;
+
   return (
     <motion.article
       whileHover={{ y: -16, scale: 1.02, transition: { duration: 0.4, ease: "easeOut" } }}
@@ -109,6 +112,13 @@ export default function ProviderCard({
             />
           </motion.div>
           <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent z-10" />
+
+          {p.premium && (
+            <span className="absolute top-4 left-4 z-20 flex items-center gap-1 px-2.5 py-1 rounded-full bg-yellow-400 text-black text-[10px] font-bold uppercase tracking-wider">
+              <Gem className="w-3 h-3" />
+              Premium
+            </span>
+          )}
 
           <motion.button
             className="absolute top-4 right-4 z-20 p-2.5 bg-black/50 backdrop-blur-xl rounded-full border border-white/10 transition-all duration-300 disabled:opacity-50"
@@ -203,5 +213,46 @@ export default function ProviderCard({
         </div>
       </motion.div>
     </motion.article>
+  );
+}
+
+/** Carte d'un prestataire non Premium : on montre qu'il existe, sans le dévoiler */
+function CarteMasquee({ p }: { p: Provider }) {
+  return (
+    <article
+      className="relative bg-[#0a0a0a] border border-white/10 rounded-[2rem] overflow-hidden select-none"
+      title="Ce prestataire sera bientôt visible sur LOKEVENT"
+    >
+      <div className="h-64 relative overflow-hidden bg-white/5">
+        {p.photoFloue && (
+          <Image
+            src={p.photoFloue}
+            alt=""
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover blur-2xl scale-125 opacity-70"
+          />
+        )}
+        <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2">
+          <span className="w-14 h-14 rounded-full bg-white/10 border border-white/25 flex items-center justify-center">
+            <Lock className="w-6 h-6 text-white" />
+          </span>
+          <span className="text-white text-sm font-semibold">Bientôt visible</span>
+        </div>
+      </div>
+
+      <div className="p-7">
+        {/* Nom remplacé par une barre grise */}
+        <div className="h-4 w-1/2 rounded-full bg-white/10 mb-3" />
+        {p.categorie && <p className="text-teal-400 text-sm font-semibold mb-2">{p.categorie}</p>}
+        <div className="flex items-center gap-2 text-gray-500 text-xs font-medium">
+          <MapPin className="w-3.5 h-3.5 text-teal-400" />
+          {p.location}
+        </div>
+        <p className="border-t border-white/10 pt-5 mt-6 text-xs text-gray-500">
+          Ce prestataire est inscrit sur LOKEVENT. Sa fiche sera bientôt publique.
+        </p>
+      </div>
+    </article>
   );
 }
