@@ -294,7 +294,7 @@ export default function AdminPublicites() {
           />
         </label>
         <label className="flex flex-col gap-1 text-xs text-gray-400">
-          Ordre d'affichage (0 = en premier)
+          Ordre d&apos;affichage (0 = en premier)
           <input
             type="number"
             value={form.ordre}
@@ -356,7 +356,7 @@ export default function AdminPublicites() {
       {chargement ? (
         <p className="text-gray-400">Chargement…</p>
       ) : pubs.length === 0 ? (
-        <p className="text-gray-400">Aucune publicité pour l'instant.</p>
+        <p className="text-gray-400">Aucune publicité pour l&apos;instant.</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {pubs.map((p) => {

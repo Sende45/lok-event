@@ -7,10 +7,12 @@ import {
   updateStatutReservation,
 } from "../controllers/reservation.controller";
 import { protect } from "../middlewares/auth.middleware";
+import { exigerPrestataireVisible } from "../middlewares/prestataireVisible.middleware";
 
 const router = Router();
 
-router.post("/", protect, creerReservation);
+// exigerPrestataireVisible : pas de réservation vers une fiche masquée (non Premium)
+router.post("/", protect, exigerPrestataireVisible, creerReservation);
 router.get("/mes-reservations", protect, getMesReservations);
 // Annulation par le client de sa propre demande
 router.patch("/:id/annuler", protect, annulerReservation);

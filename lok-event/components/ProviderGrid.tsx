@@ -23,6 +23,9 @@ interface PrestataireAPI {
   telephone: string | null;
   distance?: number; // renvoyé uniquement par /proximite
   categorie: { nom: string; couleur?: string | null };
+  masque?: boolean; // prestataire non Premium : fiche floutée
+  premium?: boolean;
+  photoFloue?: string | null;
 }
 
 interface PrestatairesResponse {
@@ -54,10 +57,16 @@ function mapToProvider(pr: PrestataireAPI): Provider {
     name: pr.nomEntreprise,
     image: pr.photos?.[0],
     rating: pr.notemoyenne,
-    location: `${pr.quartier}, ${pr.ville}`,
+    location: pr.masque
+      ? pr.commune || pr.ville
+      : `${pr.quartier}, ${pr.ville}`,
     price: pr.prixMin ?? 0,
     whatsapp: pr.whatsapp ?? undefined,
     telephone: pr.telephone ?? undefined,
+    categorie: pr.categorie?.nom,
+    masque: pr.masque ?? false,
+    premium: pr.premium ?? false,
+    photoFloue: pr.photoFloue ?? undefined,
   };
 }
 
