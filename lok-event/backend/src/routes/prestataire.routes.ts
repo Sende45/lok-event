@@ -19,6 +19,7 @@ import {
 import { protect } from "../middlewares/auth.middleware";
 import { requireProvider } from "../middlewares/provider.middleware";
 import { uploadMiddleware, uploadPhotoToImgbb } from "../controllers/prestataire.controller";
+import { masquerNonPremium } from "../middlewares/visibilite.middleware";
 
 const router = Router();
 
@@ -38,8 +39,9 @@ router.post("/photos/upload", protect, requireProvider, uploadMiddleware.single(
 
 // Routes publiques (doivent être déclarées après les routes protégées ci-dessus)
 // ⚠️ /proximite DOIT être avant /:id, sinon "proximite" serait interprété comme un id
-router.get("/proximite", getPrestatairesProximite);
-router.get("/", getPrestatairesPublic);
-router.get("/:id", getPrestatairePublic);
+// masquerNonPremium : seuls les prestataires Premium sont visibles en entier
+router.get("/proximite", masquerNonPremium, getPrestatairesProximite);
+router.get("/", masquerNonPremium, getPrestatairesPublic);
+router.get("/:id", masquerNonPremium, getPrestatairePublic);
 
 export default router;

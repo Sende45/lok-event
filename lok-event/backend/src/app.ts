@@ -16,7 +16,8 @@ import messageRoutes from "./routes/message.routes";
 import disponibiliteRoutes from "./routes/disponibilite.routes";
 import serviceRoutes from "./routes/service.routes";
 import premiumRoutes from "./routes/premium.routes";
-import parametreRoutes from "./routes/parametre.routes"
+import parametreRoutes from "./routes/parametre.routes";
+import publiciteRoutes from "./routes/publicite.routes";
 import { globalLimiter } from "./middlewares/rateLimit.middleware";
 
 const app = express();
@@ -110,5 +111,6 @@ app.use("/api/disponibilites", disponibiliteRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/premium", premiumRoutes);
 app.use("/api/parametres", parametreRoutes);
+app.use("/api/publicites", publiciteRoutes);
 
 export default app;

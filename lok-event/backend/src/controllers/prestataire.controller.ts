@@ -889,7 +889,7 @@ export const getPrestatairesPublic = async (req: Request, res: Response) => {
           user: { select: { id: true, nom: true, prenom: true, avatar: true } },
           _count: { select: { avis: true, reservations: true } },
         },
-        orderBy: { notemoyenne: "desc" },
+      orderBy: [{ user: { estPremium: "desc" } }, { notemoyenne: "desc" }],
         skip,
         take,
       }),

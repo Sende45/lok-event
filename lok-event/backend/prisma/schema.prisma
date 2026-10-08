@@ -34,6 +34,11 @@ enum StatutAbonnement {
   REFUSE
 }
 
+enum EmplacementPub {
+  ACCUEIL_CARROUSEL // grand carrousel en haut de l'accueil
+  ACCUEIL_ENCART    // encart au milieu de l'accueil
+}
+
 enum MoyenPaiement {
   WAVE
   ORANGE_MONEY
@@ -278,4 +283,26 @@ model Parametre {
   updatedAt DateTime @updatedAt
 
   @@map("parametres")
+}
+
+// Publicités des marques partenaires (gérées par l'admin)
+model Publicite {
+  id          String         @id @default(cuid())
+  marque      String // ex : "Wave", "MTN", "SOLIBRA"
+  titre       String?
+  sousTitre   String?
+  imageUrl    String // bannière 16:9 hébergée sur Imgbb
+  lien        String? // page ouverte au clic (https://…)
+  emplacement EmplacementPub @default(ACCUEIL_CARROUSEL)
+  ordre       Int            @default(0)
+  actif       Boolean        @default(true)
+  debutLe     DateTime       @default(now())
+  finLe       DateTime?
+  affichages  Int            @default(0)
+  clics       Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([emplacement, actif])
+  @@map("publicites")
 }
