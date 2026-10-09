@@ -24,6 +24,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { deconnecter } from "@/lib/session";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import MessageBadge from "@/components/messages/MessageBadge";
 
@@ -122,11 +123,9 @@ export default function ClientDashboard() {
     loadDashboard();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("lokevent_token");
-    localStorage.removeItem("lokevent_user");
-    router.push("/login");
-  };
+      const handleLogout = () => {
+      deconnecter("/login"); // efface aussi le cookie httpOnly côté API
+    };
 
   const handleAnnuler = async (reservationId: string) => {
     if (!window.confirm("Voulez-vous vraiment annuler cette réservation ?")) return;

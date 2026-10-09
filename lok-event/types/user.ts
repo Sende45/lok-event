@@ -11,6 +11,7 @@ export interface User {
 }
 
 export interface AuthResponse {
-  token: string;
+  /** Absent pour le site web : la session est dans un cookie httpOnly. Présent pour l'app mobile. */
+  token?: string;
   user: User;
 }

@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { deconnecter } from "@/lib/session";
 
 interface User {
   id: string;
@@ -34,10 +35,8 @@ export function useAuth() {
   }, []);
 
   const logout = () => {
-    localStorage.removeItem("lokevent_token");
-    localStorage.removeItem("lokevent_user");
     setUser(null);
-    window.location.href = "/login";
+    deconnecter("/login"); // efface aussi le cookie httpOnly côté API
   };
 
   return {

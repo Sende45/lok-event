@@ -1,9 +1,20 @@
 // src/lib/api.ts
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+//
+// Toutes les requêtes du site vers l'API.
+// Session = cookie httpOnly posé par l'API (credentials: "include") :
+// aucun token n'est lu ni stocké en JavaScript.
+// L'en-tête "X-Client: web" sert de protection CSRF côté API.
+import { estConnecte, oublierSession } from "./session";
 
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("lokevent_token");
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+// Nettoyage unique : les anciennes versions du site gardaient le JWT ici
+if (typeof window !== "undefined") {
+  try {
+    localStorage.removeItem("lokevent_token");
+  } catch {
+    /* navigation privée stricte : rien à nettoyer */
+  }
 }
 
 // Évite de déclencher plusieurs redirections simultanées quand plusieurs
@@ -22,34 +33,32 @@ function handleSessionExpired() {
   if (path.startsWith("/login") || path.startsWith("/register")) return;
 
   sessionExpiredHandled = true;
-  localStorage.removeItem("lokevent_token");
-  localStorage.removeItem("lokevent_user");
+  oublierSession();
   const current = window.location.pathname + window.location.search;
   window.location.href = `/login?redirect=${encodeURIComponent(current)}&expired=1`;
 }
 
-async function request<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const token = getToken();
+/** En-têtes communs (à utiliser aussi pour les envois de fichiers) */
+export const ENTETES_WEB = { "X-Client": "web" } as const;
 
+async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_URL}${endpoint}`, {
     ...options,
+    credentials: "include", // envoie le cookie httpOnly de session
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...ENTETES_WEB,
       ...options.headers,
     },
   });
 
-  const data = (await res.json()) as { message?: string } & T;
+  const data = (await res.json().catch(() => ({}))) as { message?: string } & T;
 
-  // Token invalide ou expiré : déconnexion propre + redirection avec retour.
-  // Conditions : un token existait (sinon l'utilisateur navigue simplement
-  // sans être connecté) et ce n'est pas une route d'auth (sinon un mauvais
-  // mot de passe au login déclencherait la redirection).
-  if (res.status === 401 && token && !endpoint.startsWith("/auth/")) {
+  // Session invalide ou expirée : déconnexion propre + redirection avec retour.
+  // Conditions : l'utilisateur se croyait connecté (sinon il navigue
+  // simplement en visiteur) et ce n'est pas une route d'auth (sinon un
+  // mauvais mot de passe au login déclencherait la redirection).
+  if (res.status === 401 && estConnecte() && !endpoint.startsWith("/auth/")) {
     handleSessionExpired();
     throw new Error("Session expirée, veuillez vous reconnecter");
   }
@@ -58,6 +67,23 @@ async function request<T>(
     throw new Error(data.message || "Une erreur est survenue");
   }
 
+  return data as T;
+}
+
+/** Envoi d'un fichier (multipart) avec la session cookie */
+export async function envoyerFichier<T = { url: string }>(endpoint: string, formData: FormData): Promise<T> {
+  const res = await fetch(`${API_URL}${endpoint}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { ...ENTETES_WEB }, // pas de Content-Type : le navigateur gère le multipart
+    body: formData,
+  });
+  const data = (await res.json().catch(() => ({}))) as { message?: string } & T;
+  if (res.status === 401 && estConnecte()) {
+    handleSessionExpired();
+    throw new Error("Session expirée, veuillez vous reconnecter");
+  }
+  if (!res.ok) throw new Error(data.message || "Échec de l'envoi du fichier");
   return data as T;
 }
 

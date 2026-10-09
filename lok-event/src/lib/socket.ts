@@ -1,7 +1,8 @@
 // frontend/src/lib/socket.ts
 //
 // Client Socket.io LOKEVENT (singleton).
-// - S'authentifie avec le JWT stocké dans localStorage (lokevent_token).
+// - S'authentifie avec le cookie httpOnly de session : le navigateur l'envoie
+//   tout seul avec la connexion websocket (aucun token lu en JavaScript).
 // - Écoute les notifications personnelles ET les annonces Premium.
 //
 // Utilisation dans un composant / layout :
@@ -35,10 +36,10 @@ const RAW_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 // ⚠️ Socket.io interprète le CHEMIN de l'URL comme un NAMESPACE.
 // NEXT_PUBLIC_API_URL contient "/api" pour les routes REST
-// (ex: https://lok-event.onrender.com/api) — si on le passe tel quel à io(),
+// (ex: https://api.lokevent.eden-group.co/api) — si on le passe tel quel à io(),
 // le client demande le namespace "/api" au serveur, qui répond
 // "Invalid namespace". On ne garde donc que l'ORIGINE de l'URL
-// (https://lok-event.onrender.com) pour la connexion temps réel.
+// (https://api.lokevent.eden-group.co) pour la connexion temps réel.
 function extraireOrigine(url: string): string {
   try {
     return new URL(url).origin;
@@ -56,8 +57,9 @@ export function getSocket(): Socket | null {
   // Jamais côté serveur (SSR Next.js)
   if (typeof window === "undefined") return null;
 
-  const token = localStorage.getItem("lokevent_token");
-  if (!token) return null;
+  // Personne de connecté : pas de temps réel.
+  // (Le token n'est plus lisible ici : il est dans un cookie httpOnly.)
+  if (!localStorage.getItem("lokevent_user")) return null;
 
   // Déjà créé (connecté OU en cours de reconnexion) : on réutilise.
   // Ne pas recréer un socket pendant une reconnexion, sinon on empile
@@ -66,10 +68,11 @@ export function getSocket(): Socket | null {
   if (socket) return socket;
 
   socket = io(SOCKET_URL, {
-    auth: { token },
+    // Envoie le cookie de session httpOnly avec la connexion
+    withCredentials: true,
     // ⚠️ websocket DIRECT, sans étape polling : le handshake
-    // polling→websocket casse derrière le proxy de Render
-    // (c'est le 400 sur ?transport=polling&sid=... dans ta console).
+    // polling→websocket casse derrière certains proxys
+    // (400 sur ?transport=polling&sid=... dans la console).
     transports: ["websocket"],
     reconnection: true,
     reconnectionAttempts: 10,

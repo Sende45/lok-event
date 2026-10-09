@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Megaphone, Plus, Edit2, Trash2, Power, Upload, Eye, MousePointerClick, ExternalLink } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, envoyerFichier } from "@/lib/api";
 
 type Emplacement = "ACCUEIL_CARROUSEL" | "ACCUEIL_ENCART";
 
@@ -54,8 +54,6 @@ const EMPLACEMENTS: Record<Emplacement, string> = {
   ACCUEIL_CARROUSEL: "Carrousel d'accueil (grand format)",
   ACCUEIL_ENCART: "Encart au milieu de l'accueil",
 };
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 const champ =
   "px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-teal-400/50 focus:outline-none";
@@ -112,14 +110,8 @@ export default function AdminPublicites() {
     try {
       const data = new FormData();
       data.append("image", fichier);
-      const token = localStorage.getItem("lokevent_token");
-      const res = await fetch(`${API_URL}/publicites/upload`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: data,
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Échec de l'envoi de l'image");
+      // Session envoyée par le cookie httpOnly (credentials: "include")
+      const json = await envoyerFichier<{ url: string }>("/publicites/upload", data);
       setForm((f) => ({ ...f, imageUrl: json.url }));
     } catch (err) {
       setMessage({ type: "erreur", texte: err instanceof Error ? err.message : "Échec de l'envoi" });

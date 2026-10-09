@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { api } from "@/lib/api";
+import { deconnecter } from "@/lib/session";
 import { uploadToImgbb } from "@/lib/imgbb";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import MessageBadge from "@/components/messages/MessageBadge";

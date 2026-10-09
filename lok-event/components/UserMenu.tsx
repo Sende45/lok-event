@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { User, LogOut, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
+import { deconnecter } from "@/lib/session";
 
 interface StoredUser {
   prenom: string;
@@ -12,8 +13,8 @@ interface StoredUser {
 }
 
 export default function UserMenu() {
-  // ⚠️ Aligné sur les clés utilisées partout ailleurs : lokevent_user / lokevent_token
-  // (l'ancienne version lisait "user" avec des rôles en minuscules — jamais rempli)
+  // Profil mémorisé à la connexion (non secret). Le token, lui, est dans un
+  // cookie httpOnly géré par l'API : il n'est jamais lu en JavaScript.
   const [user] = useState<StoredUser | null>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -65,11 +66,7 @@ export default function UserMenu() {
       </div>
 
       <button
-        onClick={() => {
-          localStorage.removeItem("lokevent_token");
-          localStorage.removeItem("lokevent_user");
-          window.location.href = "/";
-        }}
+        onClick={() => deconnecter("/")}
         className="p-2 text-gray-400 hover:text-red-400 transition-colors"
         title="Déconnexion"
       >
