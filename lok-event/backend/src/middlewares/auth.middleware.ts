@@ -2,6 +2,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
+import { lireToken } from "../lib/cookieSession";
 
 // La propriété req.user est désormais déclarée GLOBALEMENT sur Request
 // (via src/types/express.d.ts). On garde cet alias uniquement pour que
@@ -13,7 +14,7 @@ export const protect = async (
   res: Response,
   next: NextFunction
 ) => {
-  const token = req.headers.authorization?.split(" ")[1];
+  const token = lireToken(req);
   if (!token) {
     res.status(401).json({ message: "Non autorisé, token manquant" });
     return;

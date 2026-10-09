@@ -28,6 +28,7 @@ import { Server as HttpServer } from "http";
 import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import { prisma } from "./prisma";
+import { lireCookie, NOM_COOKIE } from "./cookieSession";
 
 const ROOM_PREMIUM = "clients-premium";
 
@@ -61,10 +62,12 @@ export function initSocket(httpServer: HttpServer): Server {
   // Middleware d'authentification : refuse la connexion sans JWT valide
   io.use((socket: Socket, next) => {
     try {
+            // Mobile : token envoyé dans auth.token — Site web : cookie httpOnly
+      // envoyé automatiquement par le navigateur avec la connexion websocket
       const token =
         socket.handshake.auth?.token ||
-        (socket.handshake.headers.authorization || "").replace("Bearer ", "");
-
+        (socket.handshake.headers.authorization || "").replace("Bearer ", "") ||
+        lireCookie(socket.handshake.headers.cookie, NOM_COOKIE);
       if (!token) {
         return next(new Error("Authentification requise"));
       }

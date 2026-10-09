@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { estConnecte } from "@/lib/session";
 
 const TEAL_COLOR = "#14B8A6";
 const TEAL_BORDER = "rgba(20, 184, 166, 0.6)";
@@ -26,8 +27,8 @@ export default function ProviderCard({
     e.preventDefault();
     e.stopPropagation();
 
-    const token = localStorage.getItem("lokevent_token");
-    if (!token) {
+    // La session est dans un cookie httpOnly : on vérifie juste le profil mémorisé
+    if (!estConnecte()) {
       window.location.href = "/login";
       return;
     }

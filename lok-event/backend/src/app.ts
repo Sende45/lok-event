@@ -19,6 +19,7 @@ import premiumRoutes from "./routes/premium.routes";
 import parametreRoutes from "./routes/parametre.routes";
 import publiciteRoutes from "./routes/publicite.routes";
 import { globalLimiter } from "./middlewares/rateLimit.middleware";
+import { protectionCsrf } from "./lib/cookieSession";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -55,6 +56,8 @@ const allowedOrigins = [
   "http://localhost:3000",
   // Domaine de production actuel (sous-domaine OVH branché sur Vercel)
   "https://lokevent.eden-group.co",
+
+  "https://www.lokevent.eden-group.co",
   // Ancienne URL Vercel — encore active, on la garde le temps de la transition
   "https://lok-event.vercel.app",
   process.env.FRONTEND_URL,
@@ -86,6 +89,7 @@ app.use(
 // endpoints (les photos passent par multer, pas par le body JSON).
 // Bloque les payloads géants destinés à saturer la mémoire du serveur.
 app.use(express.json({ limit: "200kb" }));
+app.use(protectionCsrf);
 
 // Le rate-limiter global est désactivé en environnement de test
 // pour ne pas fausser les résultats des tests qui font beaucoup de requêtes rapides.

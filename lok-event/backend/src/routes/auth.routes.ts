@@ -1,6 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { register, login, getMe } from "../controllers/auth.controller";
+import { register, login, logout, getMe } from "../controllers/auth.controller";
 import { demanderCode, reinitialiserMotDePasse } from "../controllers/motDePasse.controller";
 import { modifierProfil, changerMotDePasse, supprimerCompte } from "../controllers/compte.controller";
 import { uploadMiddleware, uploadPhotoToImgbb } from "../controllers/prestataire.controller";
@@ -28,6 +28,7 @@ const reinitialisationLimiter = rateLimit({
 const router = Router();
 router.post("/register", registerLimiter, register);
 router.post("/login", loginLimiter, login);
+router.post("/logout", logout);
 router.get("/me", protect, getMe);
 router.post("/mot-de-passe-oublie", demandeCodeLimiter, demanderCode);
 router.post("/reinitialiser-mot-de-passe", reinitialisationLimiter, reinitialiserMotDePasse);

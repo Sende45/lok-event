@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
+import { deconnecter } from "@/lib/session";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import MessageBadge from "@/components/messages/MessageBadge";
@@ -233,11 +234,9 @@ export default function SearchBar() {
     (searchValue.trim().length >= 2 || locationValue.trim().length >= 2 || isNearbyMode);
 
   const handleLogout = () => {
-    localStorage.removeItem("lokevent_token");
-    localStorage.removeItem("lokevent_user");
     setUser(null);
     setIsMenuOpen(false);
-    window.location.href = "/";
+    deconnecter("/"); // efface aussi le cookie httpOnly côté API
   };
 
   const getDashboardLink = () => {

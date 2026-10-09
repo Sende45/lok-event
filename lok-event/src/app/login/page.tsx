@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, Sparkles, ArrowRight, ArrowLeft, Clock } from "lucide-react";
 import { api } from "@/lib/api";
+import { enregistrerSession } from "@/lib/session";
 import { AuthResponse } from "@/types/user";
 
 // Sécurité : on n'accepte que des chemins internes ("/...") pour éviter
@@ -39,8 +40,9 @@ function LoginContent() {
         motDePasse: password,
       });
 
-      localStorage.setItem("lokevent_token", data.token);
-      localStorage.setItem("lokevent_user", JSON.stringify(data.user));
+      // Le token est dans un cookie httpOnly posé par l'API : on ne garde
+      // ici que le profil (non secret) pour l'affichage
+      enregistrerSession(data.user);
 
       // Priorité au retour vers la page d'origine (ex: fiche prestataire),
       // sinon dashboard selon le rôle
@@ -169,6 +171,15 @@ function LoginContent() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+            </div>
+
+            <div className="text-right -mt-1">
+              <Link
+                href="/mot-de-passe-oublie"
+                className="text-xs text-teal-400 hover:text-teal-300 transition-colors"
+              >
+                Mot de passe oublié ?
+              </Link>
             </div>
 
             <motion.button

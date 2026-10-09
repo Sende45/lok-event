@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
+import { effacerCookieSession, estClientWeb, poserCookieSession } from "../lib/cookieSession";
 
 // La tokenVersion est embarquée dans chaque JWT : le middleware protect la
 // compare à celle en base à chaque requête. Incrémenter la version en base
@@ -34,8 +35,13 @@ export const register = async (req: Request, res: Response) => {
     const user = await prisma.user.create({
       data: { nom, prenom, email, motDePasse: hash, telephone, role: roleFinal },
     });
+    const token = generateToken(user.id, user.role, user.tokenVersion);
+    // Site web : session en cookie httpOnly. Mobile : token dans la réponse
+    // (pas de cookie, sinon il resterait dans la mémoire du téléphone).
+    if (estClientWeb(req)) poserCookieSession(res, token);
     res.status(201).json({
-      token: generateToken(user.id, user.role, user.tokenVersion),
+      // Le site web reçoit la session dans le cookie httpOnly uniquement
+      ...(estClientWeb(req) ? {} : { token }),
       user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role },
     });
   } catch (error) {
@@ -51,13 +57,25 @@ export const login = async (req: Request, res: Response) => {
       res.status(401).json({ message: "Email ou mot de passe incorrect" });
       return;
     }
+    const token = generateToken(user.id, user.role, user.tokenVersion);
+    // Site web : session en cookie httpOnly. Mobile : token dans la réponse
+    // (pas de cookie, sinon il resterait dans la mémoire du téléphone).
+    if (estClientWeb(req)) poserCookieSession(res, token);
     res.json({
-      token: generateToken(user.id, user.role, user.tokenVersion),
+      // Le site web reçoit la session dans le cookie httpOnly uniquement
+      ...(estClientWeb(req) ? {} : { token }),
       user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role },
     });
   } catch (error) {
     res.status(500).json({ message: "Erreur serveur", error });
   }
+};
+
+// POST /auth/logout — efface le cookie de session du site web.
+// (L'application mobile se déconnecte en oubliant simplement son token.)
+export const logout = async (_req: Request, res: Response) => {
+  effacerCookieSession(res);
+  res.json({ message: "Déconnecté" });
 };
 
 export const getMe = async (req: any, res: Response) => {

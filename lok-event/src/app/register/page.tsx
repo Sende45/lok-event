@@ -20,6 +20,7 @@ import {
   Briefcase,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { enregistrerSession } from "@/lib/session";
 import { AuthResponse } from "@/types/user";
 
 export default function Register() {
@@ -116,8 +117,9 @@ export default function Register() {
         role: formData.role,
       });
 
-      localStorage.setItem("lokevent_token", data.token);
-      localStorage.setItem("lokevent_user", JSON.stringify(data.user));
+      // Le token est dans un cookie httpOnly posé par l'API : on ne garde
+      // ici que le profil (non secret) pour l'affichage
+      enregistrerSession(data.user);
 
       setSuccess(true);
 

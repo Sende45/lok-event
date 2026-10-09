@@ -16,12 +16,13 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
 import { premiumEstActif } from "../lib/socket";
+import { lireToken } from "../lib/cookieSession";
 
 type PrestataireJson = Record<string, any> & { id: string; userId?: string; user?: Record<string, any> };
 
 /** Lit le token s'il y en a un, sans bloquer la requête s'il est absent ou invalide */
 function lecteurOptionnel(req: Request): { id: string; role: string } | null {
-  const token = req.headers.authorization?.split(" ")[1];
+  const token = lireToken(req);
   if (!token) return null;
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id?: string; role?: string };

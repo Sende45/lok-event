@@ -14,7 +14,8 @@ import {
   Tooltip, Legend, CartesianGrid,
 } from "recharts";
 import { api } from "@/lib/api";
-   import AdminPublicites from "@/components/dashboard/AdminPublicites";
+import { deconnecter } from "@/lib/session";
+import AdminPublicites from "@/components/dashboard/AdminPublicites";
 
 interface EvolutionMois {
   mois: string;
@@ -267,11 +268,9 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [activeTab, loadLiveData]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("lokevent_token");
-    localStorage.removeItem("lokevent_user");
-    router.push("/login");
-  };
+    const handleLogout = () => {
+    deconnecter("/login"); // efface aussi le cookie httpOnly côté API
+    };
 
   const handleVerify = async (id: string) => {
     await api.patch(`/admin/providers/${id}/verify`, {});

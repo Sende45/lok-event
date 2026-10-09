@@ -7,6 +7,7 @@ import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
 import { getIO } from "../lib/socket";
+import { effacerCookieSession } from "../lib/cookieSession";
 
 const LONGUEUR_MIN_MDP = 8;
 
@@ -98,6 +99,7 @@ export const changerMotDePasse = async (req: Request, res: Response) => {
       data: { motDePasse: await bcrypt.hash(nouveau, 12), tokenVersion: { increment: 1 } },
     });
 
+    effacerCookieSession(res); // la session web est terminée elle aussi
     res.json({ message: "Mot de passe modifié. Reconnectez-vous avec votre nouveau mot de passe." });
   } catch (error) {
     console.error("Erreur changement mot de passe:", error);
@@ -170,6 +172,7 @@ export const supprimerCompte = async (req: Request, res: Response) => {
       // Socket.io pas initialisé (tests) : rien à faire
     }
 
+    effacerCookieSession(res); // efface aussi la session du site web
     res.json({ message: "Votre compte et vos données ont été supprimés." });
   } catch (error) {
     console.error("Erreur suppression compte:", error);
