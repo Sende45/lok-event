@@ -272,7 +272,7 @@ export const validerDemande = async (req: AuthRequest, res: Response) => {
       abonnement.userId,
       "PREMIUM",
       "Bienvenue dans LOKEVENT Premium 💎",
-      `Votre ${packInfo?.label || abonnement.pack} est actif jusqu'au ${fin.toLocaleDateString("fr-FR")}. Profitez de vos avantages exclusifs !`,
+      `Votre ${packInfo?.label || abonnement.pack} est actif jusqu'au ${fin.toLocaleDateString("fr-FR")}. Votre fiche est maintenant visible par tous les organisateurs, en tête des résultats et sur la carte.`,
       { abonnementId }
     );
 

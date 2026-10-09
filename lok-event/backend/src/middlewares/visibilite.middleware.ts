@@ -68,7 +68,7 @@ function masquer(p: PrestataireJson): PrestataireJson {
     services: [],
     avis: [],
     _count: p._count ?? { avis: 0, reservations: 0 },
-    ...(p.distance !== undefined ? { distance: p.distance } : {}),
+    ...(typeof p.distance === "number" ? { distance: Math.max(1, Math.round(p.distance)) } : {}),
   };
 }
 

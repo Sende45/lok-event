@@ -1,7 +1,10 @@
 "use client";
 
 // frontend/src/app/premium/page.tsx
-// Page de souscription LOKEVENT Premium.
+// Page de souscription LOKEVENT Premium — réservé aux PRESTATAIRES.
+// Sans Premium, la fiche d'un prestataire est floutée : les organisateurs ne voient
+// ni son nom, ni ses photos, ni ses contacts, et ne peuvent pas le réserver.
+// Les organisateurs utilisent LOKEVENT gratuitement : ils voient un message dédié.
 // Les numéros mobile money et le nom de compte sont configurés depuis le
 // dashboard admin (onglet Premium → Numéros de paiement) et chargés via l'API.
 
@@ -12,12 +15,14 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  Sparkles,
-  Zap,
+  Eye,
+  CalendarCheck,
+  TrendingUp,
+  MapPin,
   BadgeCheck,
-  Megaphone,
   Headphones,
   ArrowLeft,
+  PartyPopper,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
@@ -49,30 +54,43 @@ const PACKS_DEFAUT: Pack[] = [
 
 const AVANTAGES = [
   {
-    icon: Zap,
-    titre: "Réservations prioritaires",
-    desc: "Vos demandes remontent en tête de liste chez les prestataires.",
+    icon: Eye,
+    titre: "Fiche visible par tous",
+    desc: "Votre nom, vos photos, vos prestations, vos prix et vos avis s'affichent en clair, sans flou.",
   },
   {
-    icon: Sparkles,
-    titre: "Accès en avant-première",
-    desc: "Découvrez les nouveaux prestataires vérifiés avant tout le monde.",
+    icon: CalendarCheck,
+    titre: "Réservations et messages",
+    desc: "Les organisateurs peuvent vous écrire, vous appeler et vous envoyer des demandes de réservation.",
+  },
+  {
+    icon: TrendingUp,
+    titre: "En tête des résultats",
+    desc: "Votre fiche passe avant les fiches gratuites dans les recherches et les catégories.",
+  },
+  {
+    icon: MapPin,
+    titre: "Sur la carte « Autour de moi »",
+    desc: "Les organisateurs proches vous trouvent sur la carte et lancent l'itinéraire jusqu'à vous.",
   },
   {
     icon: BadgeCheck,
     titre: "Badge Premium 💎",
-    desc: "Visible des prestataires : un profil sérieux obtient des réponses plus rapides.",
-  },
-  {
-    icon: Megaphone,
-    titre: "Offres exclusives",
-    desc: "Promotions et annonces réservées aux membres, en temps réel.",
+    desc: "Un badge doré sur votre fiche : un gage de sérieux qui inspire confiance.",
   },
   {
     icon: Headphones,
     titre: "Support prioritaire",
-    desc: "Vos questions traitées en premier par l'équipe LOKEVENT.",
+    desc: "Vos questions sont traitées en premier par l'équipe LOKEVENT.",
   },
+];
+
+const COMPARAISON: { label: string; gratuit: boolean }[] = [
+  { label: "Fiche complète (nom, photos, prix)", gratuit: false },
+  { label: "Messages des organisateurs", gratuit: false },
+  { label: "Demandes de réservation", gratuit: false },
+  { label: "Position sur la carte", gratuit: false },
+  { label: "Inscription et gestion de la fiche", gratuit: true },
 ];
 
 interface Pack {
@@ -99,6 +117,8 @@ export default function PremiumPage() {
   const [statut, setStatut] = useState<StatutPremium | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [nonConnecte, setNonConnecte] = useState(false);
+  // Rôle du compte connecté : le Premium ne concerne que les PRESTATAIRES
+  const [role, setRole] = useState<string | null>(null);
 
   // Numéros de paiement configurés par l'admin
   const [numerosPaiement, setNumerosPaiement] =
@@ -132,8 +152,12 @@ export default function PremiumPage() {
         // Route pas encore déployée : on garde les valeurs par défaut
       }
       try {
-        const statutData = await api.get<StatutPremium>("/premium/statut");
-        setStatut(statutData);
+        const moi = await api.get<{ role: string }>("/auth/me");
+        setRole(moi?.role ?? null);
+        if (moi?.role === "PRESTATAIRE") {
+          const statutData = await api.get<StatutPremium>("/premium/statut");
+          setStatut(statutData);
+        }
       } catch {
         // 401 : l'utilisateur n'est pas connecté — on affiche quand même la page
         setNonConnecte(true);
@@ -211,22 +235,44 @@ export default function PremiumPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 md:px-8 py-8 sm:py-10 md:py-14">
-        {/* ── Cas 1 : déjà Premium ── */}
-        {statut?.estPremium ? (
+        {/* ── Cas 0 : organisateur ou admin — le Premium ne les concerne pas ── */}
+        {role && role !== "PRESTATAIRE" ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-lg mx-auto text-center bg-white/5 border border-white/10 rounded-2xl p-6 sm:p-10"
+          >
+            <PartyPopper className="w-14 h-14 text-teal-400 mx-auto mb-4" />
+            <h1 className="text-xl sm:text-2xl font-bold mb-2">Premium est réservé aux prestataires</h1>
+            <p className="text-gray-400 text-sm">
+              {role === "ADMIN"
+                ? "Les demandes Premium des prestataires se valident depuis le tableau de bord admin (onglet Premium)."
+                : "En tant qu'organisateur, LOKEVENT est entièrement gratuit pour vous : recherche, messages et réservations. Les prestataires Premium sont ceux dont la fiche est visible en entier."}
+            </p>
+            <Link
+              href={role === "ADMIN" ? "/admin" : "/"}
+              className="inline-block mt-6 px-5 py-2.5 bg-teal-400 text-black font-semibold text-sm rounded-lg hover:bg-teal-300 transition-colors"
+            >
+              {role === "ADMIN" ? "Aller au tableau de bord" : "Trouver un prestataire"}
+            </Link>
+          </motion.div>
+        ) : /* ── Cas 1 : déjà Premium ── */
+        statut?.estPremium ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="max-w-lg mx-auto text-center bg-white/5 border border-yellow-500/20 rounded-2xl p-6 sm:p-10"
           >
             <Crown className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-            <h1 className="text-xl sm:text-2xl font-bold mb-2">Vous êtes membre Premium 💎</h1>
+            <h1 className="text-xl sm:text-2xl font-bold mb-2">Votre fiche est Premium 💎</h1>
             <p className="text-gray-400 text-sm">
               {statut.premiumJusquau
                 ? `Votre abonnement est actif jusqu'au ${new Date(statut.premiumJusquau).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}.`
                 : "Votre abonnement est actif."}
             </p>
             <p className="text-gray-500 text-xs mt-4">
-              Profitez de vos avantages : réservations prioritaires, offres exclusives et badge visible des prestataires.
+              Votre fiche est visible par tous les organisateurs, en tête des résultats et sur la carte.
+              Pensez à la garder à jour : photos, prestations et disponibilités.
             </p>
           </motion.div>
         ) : statut?.demandeEnAttente || success ? (
@@ -245,8 +291,8 @@ export default function PremiumPage() {
               {success ? "Demande envoyée !" : "Validation en cours"}
             </h1>
             <p className="text-gray-400 text-sm">
-              Notre équipe vérifie votre paiement. Votre Premium sera activé très vite —
-              vous recevrez une notification dès que c'est fait 💎
+              Notre équipe vérifie votre paiement. Dès la validation, votre fiche devient visible
+              par tous les organisateurs et vous recevez une notification 💎
             </p>
             {statut?.demandeEnAttente && !success && (
               <p className="text-gray-500 text-xs mt-4">
@@ -268,16 +314,37 @@ export default function PremiumPage() {
             >
               <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs px-3 py-1.5 rounded-full mb-4">
                 <Crown className="w-3.5 h-3.5" />
-                LOKEVENT Premium
+                LOKEVENT Premium · Prestataires
               </div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3">
-                Passez au niveau <span className="text-teal-400">supérieur</span>
+                Rendez votre activité <span className="text-teal-400">visible</span>
               </h1>
               <p className="text-gray-400 text-sm sm:text-base max-w-xl mx-auto">
-                Organisez vos événements avec une longueur d'avance : priorité, exclusivités
-                et visibilité auprès des meilleurs prestataires d'Abidjan.
+                Aujourd'hui, les organisateurs voient votre fiche floutée : ils savent qu'un prestataire
+                existe, mais ne peuvent ni voir votre nom, ni vous contacter, ni vous réserver.
+                Avec Premium, tout s'affiche.
               </p>
             </motion.div>
+
+            {/* Gratuit / Premium */}
+            <div className="max-w-2xl mx-auto mb-8 sm:mb-12 bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+              <div className="grid grid-cols-[1fr_auto_auto] text-xs sm:text-sm">
+                <div className="px-4 py-3 text-gray-500 font-medium border-b border-white/10">Ce que voient les organisateurs</div>
+                <div className="px-3 sm:px-5 py-3 text-gray-500 font-medium text-center border-b border-white/10">Gratuit</div>
+                <div className="px-3 sm:px-5 py-3 text-yellow-400 font-semibold text-center border-b border-white/10 bg-yellow-500/5">Premium</div>
+                {COMPARAISON.map((c) => (
+                  <div key={c.label} className="contents">
+                    <div className="px-4 py-2.5 text-gray-300 border-b border-white/5">{c.label}</div>
+                    <div className="px-3 sm:px-5 py-2.5 flex justify-center items-center border-b border-white/5">
+                      {c.gratuit ? <Check className="w-4 h-4 text-teal-400" /> : <X className="w-4 h-4 text-gray-600" />}
+                    </div>
+                    <div className="px-3 sm:px-5 py-2.5 flex justify-center items-center border-b border-white/5 bg-yellow-500/5">
+                      <Check className="w-4 h-4 text-teal-400" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {/* Avantages : 1 colonne mobile, 2 dès 640px, 3 en desktop */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-8 sm:mb-12">
@@ -419,8 +486,8 @@ export default function PremiumPage() {
                   {isSubmitting
                     ? "Envoi..."
                     : nonConnecte
-                    ? "Se connecter pour souscrire"
-                    : `Activer mon Premium — ${packActif?.montant.toLocaleString("fr-FR")} FCFA`}
+                    ? "Se connecter (compte prestataire)"
+                    : `Rendre ma fiche visible — ${packActif?.montant.toLocaleString("fr-FR")} FCFA`}
                 </motion.button>
 
                 <p className="text-[11px] text-gray-600 text-center">
