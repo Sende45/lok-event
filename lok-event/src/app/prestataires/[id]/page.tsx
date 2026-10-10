@@ -1,3 +1,4 @@
+// src/app/prestataires/[id]/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Star, MessageCircle, ArrowLeft, Heart, CheckCircle, Calendar, X, AlertCircle, Lock } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/lib/api";
+import { estConnecte } from "@/lib/session";
 import dynamic from "next/dynamic";
 
 // ⚠️ Leaflet ne fonctionne pas en SSR : import dynamique obligatoire
@@ -109,8 +111,7 @@ export default function PrestataireDetailPage() {
   };
 
   const handleToggleFavorite = async () => {
-    const token = localStorage.getItem("lokevent_token");
-    if (!token) {
+    if (!estConnecte()) {
       router.push("/login");
       return;
     }
@@ -132,8 +133,7 @@ export default function PrestataireDetailPage() {
   };
 
   const handleOpenReservation = () => {
-    const token = localStorage.getItem("lokevent_token");
-    if (!token) {
+    if (!estConnecte()) {
       router.push("/login");
       return;
     }
@@ -141,8 +141,7 @@ export default function PrestataireDetailPage() {
   };
 
   const handleOpenMessage = async () => {
-    const token = localStorage.getItem("lokevent_token");
-    if (!token) {
+    if (!estConnecte()) {
       router.push("/login");
       return;
     }
