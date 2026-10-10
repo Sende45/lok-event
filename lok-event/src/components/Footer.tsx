@@ -77,6 +77,21 @@ export default function Footer() {
                   Se connecter
                 </Link>
               </li>
+              <li>
+                <Link href="/terms" className="text-sm text-gray-400 hover:text-white transition-colors">
+                  Conditions d&apos;utilisation
+                </Link>
+              </li>
+              <li>
+                <Link href="/privacy" className="text-sm text-gray-400 hover:text-white transition-colors">
+                  Confidentialité
+                </Link>
+              </li>
+              <li>
+                <Link href="/suppression-compte" className="text-sm text-gray-400 hover:text-white transition-colors">
+                  Supprimer mon compte
+                </Link>
+              </li>
             </ul>
           </div>
 
