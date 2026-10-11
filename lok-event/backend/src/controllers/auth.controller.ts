@@ -14,6 +14,27 @@ const generateToken = (id: string, role: string, tokenVersion: number) =>
     expiresIn: "7d",
   });
 
+// Infos renvoyées au client après inscription / connexion.
+// Doit contenir la même chose que GET /auth/me (sinon la photo de profil
+// et le téléphone "disparaissent" à chaque nouvelle connexion).
+const profilPublic = (user: {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string | null;
+  role: string;
+  avatar: string | null;
+}) => ({
+  id: user.id,
+  nom: user.nom,
+  prenom: user.prenom,
+  email: user.email,
+  telephone: user.telephone,
+  role: user.role,
+  avatar: user.avatar,
+});
+
 // Seuls ces rôles peuvent être choisis via l'inscription publique.
 // ADMIN ne peut JAMAIS être créé par cette route — uniquement via le script de seed.
 const ROLES_AUTORISES_A_INSCRIPTION = ["CLIENT", "PRESTATAIRE"];
@@ -42,7 +63,7 @@ export const register = async (req: Request, res: Response) => {
     res.status(201).json({
       // Le site web reçoit la session dans le cookie httpOnly uniquement
       ...(estClientWeb(req) ? {} : { token }),
-      user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role },
+      user: profilPublic(user),
     });
   } catch (error) {
     res.status(500).json({ message: "Erreur serveur", error });
@@ -64,7 +85,7 @@ export const login = async (req: Request, res: Response) => {
     res.json({
       // Le site web reçoit la session dans le cookie httpOnly uniquement
       ...(estClientWeb(req) ? {} : { token }),
-      user: { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email, role: user.role },
+      user: profilPublic(user),
     });
   } catch (error) {
     res.status(500).json({ message: "Erreur serveur", error });
