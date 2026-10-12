@@ -1,12 +1,14 @@
 // backend/src/middlewares/prestataireVisible.middleware.ts
 //
 // Bloque les nouvelles réservations et les nouvelles conversations vers un
-// prestataire dont la fiche est masquée (pas d'abonnement Premium actif).
+// prestataire dont la fiche est masquée (pas d'abonnement Premium actif et
+// hors des 50 premiers inscrits visibles gratuitement).
 // Les conversations et réservations déjà commencées continuent normalement.
 // À placer APRÈS protect, sur les routes qui reçoivent "prestataireId" dans le body.
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma";
 import { premiumEstActif } from "../lib/socket";
+import { estVisibleGratuitement } from "../lib/visibiliteGratuite";
 
 export const exigerPrestataireVisible = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -19,12 +21,14 @@ export const exigerPrestataireVisible = async (req: Request, res: Response, next
 
     const prestataire = await prisma.prestataire.findUnique({
       where: { id: prestataireId },
-      select: { user: { select: { estPremium: true, premiumJusquau: true } } },
+      select: { userId: true, user: { select: { estPremium: true, premiumJusquau: true } } },
     });
     // Prestataire introuvable : le contrôleur renverra son 404
     if (!prestataire) return next();
 
-    if (!premiumEstActif(prestataire.user)) {
+    const visible =
+      premiumEstActif(prestataire.user) || (await estVisibleGratuitement(prestataire.userId));
+    if (!visible) {
       res.status(403).json({
         message: "Ce prestataire n'est pas encore disponible sur LOKEVENT. Découvrez les prestataires visibles.",
       });
