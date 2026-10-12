@@ -2,7 +2,9 @@
 //
 // Visibilité des prestataires selon leur abonnement :
 // - Prestataire PREMIUM actif  → fiche complète, visible par tous.
-// - Prestataire GRATUIT        → fiche "masquée" : on montre qu'il existe
+// - Les 50 premiers inscrits   → fiche complète gratuitement (phase de lancement,
+//   voir lib/visibiliteGratuite.ts).
+// - Prestataire GRATUIT (51e+) → fiche "masquée" : on montre qu'il existe
 //   (catégorie, commune, note, photo destinée à être floutée) mais son nom,
 //   sa description, ses contacts, ses prestations et ses avis sont cachés.
 //
@@ -17,6 +19,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
 import { premiumEstActif } from "../lib/socket";
 import { lireToken } from "../lib/cookieSession";
+import { userIdsVisiblesGratuitement } from "../lib/visibiliteGratuite";
 
 type PrestataireJson = Record<string, any> & { id: string; userId?: string; user?: Record<string, any> };
 
@@ -94,12 +97,14 @@ export const masquerNonPremium = (req: Request, res: Response, next: NextFunctio
     const lecteur = lecteurOptionnel(req);
     const ids = [...new Set(cibles.map(userIdDe).filter(Boolean))] as string[];
 
-    prisma.user
-      .findMany({
+    Promise.all([
+      prisma.user.findMany({
         where: { id: { in: ids } },
         select: { id: true, estPremium: true, premiumJusquau: true },
-      })
-      .then((users: { id: string; estPremium: boolean; premiumJusquau: Date | null }[]) => {
+      }),
+      userIdsVisiblesGratuitement(),
+    ])
+      .then(([users, gratuits]: [{ id: string; estPremium: boolean; premiumJusquau: Date | null }[], Set<string>]) => {
         const premiumParUser = new Map(users.map((u) => [u.id, premiumEstActif(u)]));
 
         const transformer = (p: PrestataireJson): PrestataireJson => {
@@ -108,6 +113,7 @@ export const masquerNonPremium = (req: Request, res: Response, next: NextFunctio
           const voitTout =
             lecteur?.role === "ADMIN" || (lecteur && proprietaire && lecteur.id === proprietaire);
           if (premium) return { ...p, masque: false, premium: true };
+          if (proprietaire && gratuits.has(proprietaire)) return { ...p, masque: false, premium: false };
           if (voitTout) return { ...p, masque: false, premium: false };
           return masquer(p);
         };
