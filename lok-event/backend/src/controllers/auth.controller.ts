@@ -1,4 +1,4 @@
-// backend/src/controllers/auth.controller.ts
+// lok-event/backend/src/controllers/auth.controller.ts
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -35,26 +35,68 @@ const profilPublic = (user: {
   avatar: user.avatar,
 });
 
+// L'email est TOUJOURS enregistré et recherché en minuscules :
+// "Ben@Gmail.com" et "ben@gmail.com" désignent le même compte.
+export function normaliserEmail(email: unknown): string | null {
+  if (typeof email !== "string") return null;
+  const propre = email.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(propre) && propre.length <= 200 ? propre : null;
+}
+
+const LONGUEUR_MIN_MDP = 8;
+
+/** Texte obligatoire, nettoyé, de longueur max donnée (null si invalide) */
+function texteRequis(valeur: unknown, max: number): string | null {
+  if (typeof valeur !== "string") return null;
+  const propre = valeur.trim();
+  return propre && propre.length <= max ? propre : null;
+}
+
 // Seuls ces rôles peuvent être choisis via l'inscription publique.
 // ADMIN ne peut JAMAIS être créé par cette route — uniquement via le script de seed.
 const ROLES_AUTORISES_A_INSCRIPTION = ["CLIENT", "PRESTATAIRE"];
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { nom, prenom, email, motDePasse, telephone, role } = req.body;
+    const { motDePasse, telephone, role } = req.body ?? {};
+    const email = normaliserEmail(req.body?.email);
+    const nom = texteRequis(req.body?.nom, 60);
+    const prenom = texteRequis(req.body?.prenom, 60);
+
+    if (!email) {
+      res.status(400).json({ message: "Adresse email invalide" });
+      return;
+    }
+    if (!nom || !prenom) {
+      res.status(400).json({ message: "Le nom et le prénom sont obligatoires (60 caractères max)" });
+      return;
+    }
+    if (typeof motDePasse !== "string" || motDePasse.length < LONGUEUR_MIN_MDP || motDePasse.length > 128) {
+      res.status(400).json({
+        message: `Le mot de passe doit contenir entre ${LONGUEUR_MIN_MDP} et 128 caractères`,
+      });
+      return;
+    }
+    const telephoneFinal =
+      typeof telephone === "string" && telephone.trim() ? telephone.trim().slice(0, 30) : null;
 
     // On ignore toute valeur de "role" qui ne serait pas explicitement autorisée.
     // Si le champ est absent, invalide, ou vaut "ADMIN", on retombe sur CLIENT.
     const roleFinal = ROLES_AUTORISES_A_INSCRIPTION.includes(role) ? role : "CLIENT";
 
-    const existe = await prisma.user.findUnique({ where: { email } });
+    // Recherche insensible à la casse : couvre aussi les anciens comptes
+    // enregistrés avec des majuscules avant ce correctif
+    const existe = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { id: true },
+    });
     if (existe) {
       res.status(400).json({ message: "Email déjà utilisé" });
       return;
     }
     const hash = await bcrypt.hash(motDePasse, 12);
     const user = await prisma.user.create({
-      data: { nom, prenom, email, motDePasse: hash, telephone, role: roleFinal },
+      data: { nom, prenom, email, motDePasse: hash, telephone: telephoneFinal, role: roleFinal },
     });
     const token = generateToken(user.id, user.role, user.tokenVersion);
     // Site web : session en cookie httpOnly. Mobile : token dans la réponse
@@ -66,14 +108,23 @@ export const register = async (req: Request, res: Response) => {
       user: profilPublic(user),
     });
   } catch (error) {
-    res.status(500).json({ message: "Erreur serveur", error });
+    console.error("Erreur inscription:", error);
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, motDePasse } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
+    const email = normaliserEmail(req.body?.email);
+    const motDePasse = req.body?.motDePasse;
+    if (!email || typeof motDePasse !== "string" || !motDePasse) {
+      res.status(401).json({ message: "Email ou mot de passe incorrect" });
+      return;
+    }
+    // Insensible à la casse : "Ben@Gmail.com" se connecte comme "ben@gmail.com"
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+    });
     if (!user || !(await bcrypt.compare(motDePasse, user.motDePasse))) {
       res.status(401).json({ message: "Email ou mot de passe incorrect" });
       return;
@@ -88,7 +139,8 @@ export const login = async (req: Request, res: Response) => {
       user: profilPublic(user),
     });
   } catch (error) {
-    res.status(500).json({ message: "Erreur serveur", error });
+    console.error("Erreur connexion:", error);
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -107,7 +159,7 @@ export const getMe = async (req: any, res: Response) => {
     });
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -129,6 +181,6 @@ export const logoutAll = async (req: any, res: Response) => {
         "Vous avez été déconnecté de tous les appareils. Reconnectez-vous pour continuer.",
     });
   } catch (error) {
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
