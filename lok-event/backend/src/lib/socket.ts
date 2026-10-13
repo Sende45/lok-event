@@ -1,4 +1,4 @@
-// backend/src/lib/socket.ts
+// lok-event/backend/src/lib/socket.ts
 //
 // Module Socket.io LOKEVENT — version fusionnée.
 // - Authentifie chaque connexion via le JWT (même token que l'API, envoyé
@@ -39,7 +39,19 @@ interface JwtPayload {
   userId?: string;
   email?: string;
   role?: string;
+  tokenVersion?: number;
 }
+
+// Origines autorisées à ouvrir une connexion temps réel depuis un navigateur
+// (les mêmes que l'API REST dans app.ts)
+const ORIGINES_AUTORISEES = [
+  "http://localhost:3000",
+  "https://lokevent.eden-group.co",
+  "https://www.lokevent.eden-group.co",
+  "https://lok-event.vercel.app",
+  process.env.FRONTEND_URL,
+].filter(Boolean) as string[];
+const PREVIEW_VERCEL = /^https:\/\/lok-event-[a-z0-9-]+\.vercel\.app$/;
 
 /** Un Premium est actif si le flag est posé ET que l'abonnement n'est pas expiré. */
 export function premiumEstActif(user: {
@@ -54,15 +66,23 @@ export function premiumEstActif(user: {
 export function initSocket(httpServer: HttpServer): Server {
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.FRONTEND_URL || "*",
+      // Mêmes origines que l'API REST (avant : "*" si FRONTEND_URL manquait)
+      origin: (origin, callback) => {
+        // Pas d'origine = application mobile : autorisée (elle s'authentifie par token)
+        if (!origin || ORIGINES_AUTORISEES.includes(origin) || PREVIEW_VERCEL.test(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(new Error("Origine non autorisée"));
+      },
       credentials: true,
     },
   });
 
   // Middleware d'authentification : refuse la connexion sans JWT valide
-  io.use((socket: Socket, next) => {
+  io.use(async (socket: Socket, next) => {
     try {
-            // Mobile : token envoyé dans auth.token — Site web : cookie httpOnly
+      // Mobile : token envoyé dans auth.token — Site web : cookie httpOnly
       // envoyé automatiquement par le navigateur avec la connexion websocket
       const token =
         socket.handshake.auth?.token ||
@@ -76,6 +96,18 @@ export function initSocket(httpServer: HttpServer): Server {
       const userId = payload.id || payload.userId;
       if (!userId) {
         return next(new Error("Token invalide"));
+      }
+
+      // Mêmes vérifications que le middleware protect de l'API :
+      // compte existant, actif, et session non révoquée (tokenVersion).
+      // Avant, un compte banni ou déconnecté de tous ses appareils
+      // continuait de recevoir les messages en temps réel.
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { actif: true, tokenVersion: true },
+      });
+      if (!user || !user.actif || payload.tokenVersion !== user.tokenVersion) {
+        return next(new Error("Session expirée. Reconnectez-vous."));
       }
 
       socket.data.userId = userId;
