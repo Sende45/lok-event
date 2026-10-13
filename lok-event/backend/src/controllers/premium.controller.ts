@@ -1,4 +1,4 @@
-// backend/src/controllers/premium.controller.ts
+// lok-event/backend/src/controllers/premium.controller.ts
 import { Request, Response } from "express";
 import { StatutAbonnement } from "@prisma/client";
 import { prisma } from "../lib/prisma";
@@ -25,6 +25,9 @@ const PACKS: Record<string, { montant: number; dureeMois: number; label: string 
 };
 
 const MOYENS_PAIEMENT = ["WAVE", "ORANGE_MONEY", "MTN", "ESPECES"];
+
+// Un Premium peut renouveler pendant les N derniers jours de son abonnement
+const JOURS_RENOUVELLEMENT = 7;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /premium/packs — liste publique des packs (pour la page d'abonnement)
@@ -86,7 +89,7 @@ export const getMonStatut = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     console.error("Erreur statut premium:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -129,16 +132,40 @@ export const souscrire = async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Déjà premium actif ?
+    // Déjà Premium : renouvellement autorisé seulement dans les 7 derniers jours
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
       select: { estPremium: true, premiumJusquau: true },
     });
     if (user && premiumEstActif(user)) {
-      res.status(400).json({
-        message: "Vous êtes déjà Premium. Attendez l'expiration pour renouveler.",
-      });
+      const joursRestants = user.premiumJusquau
+        ? (user.premiumJusquau.getTime() - Date.now()) / 86_400_000
+        : Infinity; // Premium sans date limite : pas de renouvellement
+      if (joursRestants > JOURS_RENOUVELLEMENT) {
+        res.status(400).json({
+          message: `Vous êtes déjà Premium. Vous pourrez renouveler dans les ${JOURS_RENOUVELLEMENT} derniers jours de votre abonnement.`,
+        });
+        return;
+      }
+    }
+
+    // Référence de transaction : longueur raisonnable et jamais réutilisée
+    const reference = typeof referencePaiement === "string" ? referencePaiement.trim() : "";
+    if (reference.length > 100) {
+      res.status(400).json({ message: "Référence de paiement trop longue (100 caractères max)" });
       return;
+    }
+    if (reference) {
+      const dejaUtilisee = await prisma.abonnement.findFirst({
+        where: { referencePaiement: reference, statut: { not: "REFUSE" } },
+        select: { id: true },
+      });
+      if (dejaUtilisee) {
+        res.status(400).json({
+          message: "Cette référence de transaction a déjà été utilisée. Vérifiez-la ou contactez le support.",
+        });
+        return;
+      }
     }
 
     // Une seule demande en attente à la fois
@@ -158,7 +185,7 @@ export const souscrire = async (req: AuthRequest, res: Response) => {
         pack,
         montant: packInfo.montant,
         moyenPaiement,
-        referencePaiement: referencePaiement || undefined,
+        referencePaiement: reference || undefined,
       },
     });
 
@@ -184,7 +211,7 @@ export const souscrire = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     console.error("Erreur souscription premium:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -222,7 +249,7 @@ export const getDemandes = async (req: AuthRequest, res: Response) => {
     res.json(demandes);
   } catch (error) {
     console.error("Erreur liste demandes premium:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -250,7 +277,18 @@ export const validerDemande = async (req: AuthRequest, res: Response) => {
     }
 
     const packInfo = PACKS[abonnement.pack];
-    const debut = new Date();
+
+    // Renouvellement : la nouvelle période démarre à la fin de l'actuelle,
+    // le prestataire ne perd aucun jour déjà payé
+    const titulaire = await prisma.user.findUnique({
+      where: { id: abonnement.userId },
+      select: { estPremium: true, premiumJusquau: true },
+    });
+    const maintenant = new Date();
+    const debut =
+      titulaire?.estPremium && titulaire.premiumJusquau && titulaire.premiumJusquau > maintenant
+        ? new Date(titulaire.premiumJusquau)
+        : maintenant;
     const fin = new Date(debut);
     fin.setMonth(fin.getMonth() + (packInfo?.dureeMois || 1));
 
@@ -279,7 +317,7 @@ export const validerDemande = async (req: AuthRequest, res: Response) => {
     res.json({ message: "Premium activé", finLe: fin });
   } catch (error) {
     console.error("Erreur validation premium:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -325,7 +363,7 @@ export const refuserDemande = async (req: AuthRequest, res: Response) => {
     res.json({ message: "Demande refusée" });
   } catch (error) {
     console.error("Erreur refus premium:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -365,7 +403,7 @@ export const desactiverPremium = async (req: AuthRequest, res: Response) => {
     res.json({ message: "Premium désactivé" });
   } catch (error) {
     console.error("Erreur désactivation premium:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -407,6 +445,6 @@ export const envoyerAnnoncePremium = async (req: AuthRequest, res: Response) => 
     res.json({ message: `Annonce envoyée à ${premiums.length} membre(s) Premium` });
   } catch (error) {
     console.error("Erreur annonce premium:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };

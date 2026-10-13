@@ -1,8 +1,9 @@
-// backend/src/controllers/prestataire.controller.ts
+// lok-event/backend/src/controllers/prestataire.controller.ts
 import { Request, Response } from "express";
 import multer from "multer";
-import FormData from "form-data";
 import { prisma } from "../lib/prisma";
+import { expirerPremiumsEchus } from "../lib/expirationPremium";
+import { updateStatutReservation } from "./reservation.controller";
 
 interface AuthRequest extends Request {
   user?: {
@@ -130,24 +131,29 @@ export const createPrestataireProfile = async (req: AuthRequest, res: Response) 
     res.status(201).json(prestataire);
   } catch (error) {
     console.error("Erreur création profil:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
 // ============ PHOTOS ============
+const MAX_PHOTOS = 20;
 export const addPrestatairePhoto = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { url } = req.body;
 
-    if (!url) {
-      res.status(400).json({ message: "URL manquante" });
+    if (typeof url !== "string" || !/^https:\/\//.test(url) || url.length > 500) {
+      res.status(400).json({ message: "URL de photo invalide" });
       return;
     }
 
     const prestataire = await prisma.prestataire.findUnique({ where: { userId } });
     if (!prestataire) {
       res.status(404).json({ message: "Prestataire non trouvé" });
+      return;
+    }
+    if (prestataire.photos.length >= MAX_PHOTOS) {
+      res.status(400).json({ message: `${MAX_PHOTOS} photos maximum. Supprimez-en une pour en ajouter une nouvelle.` });
       return;
     }
 
@@ -159,7 +165,7 @@ export const addPrestatairePhoto = async (req: AuthRequest, res: Response) => {
     res.json(updated);
   } catch (error) {
     console.error("Erreur ajout photo:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -182,7 +188,7 @@ export const removePrestatairePhoto = async (req: AuthRequest, res: Response) =>
     res.json(updated);
   } catch (error) {
     console.error("Erreur suppression photo:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -233,7 +239,7 @@ export const uploadPhotoToImgbb = async (req: AuthRequest, res: Response) => {
     res.json({ url: data.data.url });
   } catch (error) {
     console.error("Erreur upload photo:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -302,7 +308,7 @@ export const getPrestataireDashboard = async (req: AuthRequest, res: Response) =
     res.json({ prestataire, stats, upcomingBookings, recentReviews });
   } catch (error) {
     console.error("Erreur dashboard:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -324,7 +330,7 @@ export const getPrestataireStats = async (req: AuthRequest, res: Response) => {
     res.json(stats);
   } catch (error) {
     console.error("Erreur stats:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -426,7 +432,7 @@ export const getPrestataireProfile = async (req: AuthRequest, res: Response) => 
     res.json(prestataire);
   } catch (error) {
     console.error("Erreur profile:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -459,6 +465,28 @@ export const updatePrestataireProfile = async (req: AuthRequest, res: Response) 
       return;
     }
 
+    // Changement d'email : format valide, en minuscules, et pas déjà pris
+    let emailPropre: string | undefined;
+    if (email) {
+      emailPropre = typeof email === "string" ? email.trim().toLowerCase() : "";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailPropre) || emailPropre.length > 200) {
+        res.status(400).json({ message: "Adresse email invalide" });
+        return;
+      }
+      const dejaPris = await prisma.user.findFirst({
+        where: { email: emailPropre, id: { not: userId } },
+        select: { id: true },
+      });
+      if (dejaPris) {
+        res.status(400).json({ message: "Cette adresse email est déjà utilisée" });
+        return;
+      }
+    }
+    if (avatar && (typeof avatar !== "string" || !/^https:\/\//.test(avatar))) {
+      res.status(400).json({ message: "Photo de profil invalide" });
+      return;
+    }
+
     const lat = parseCoordinate(latitude, "lat");
     const lng = parseCoordinate(longitude, "lng");
 
@@ -481,13 +509,13 @@ export const updatePrestataireProfile = async (req: AuthRequest, res: Response) 
       include: { categorie: true },
     });
 
-    if (nom || prenom || email || avatar) {
+    if (nom || prenom || emailPropre || avatar) {
       await prisma.user.update({
         where: { id: userId },
         data: {
           nom: nom || undefined,
           prenom: prenom || undefined,
-          email: email || undefined,
+          email: emailPropre,
           avatar: avatar || undefined,
         },
       });
@@ -496,7 +524,7 @@ export const updatePrestataireProfile = async (req: AuthRequest, res: Response) 
     res.json({ message: "Profil mis à jour avec succès", prestataire: updatedPrestataire });
   } catch (error) {
     console.error("Erreur update profile:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -553,40 +581,18 @@ export const getPrestataireBookings = async (req: AuthRequest, res: Response) =>
     });
   } catch (error) {
     console.error("Erreur bookings:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
+// PUT /prestataires/bookings/:bookingId/status
+// Ancienne route conservée pour le front : elle passe désormais par la même
+// logique que PATCH /reservations/:id/statut (transitions contrôlées,
+// anti double réservation, notification au client). Avant, elle changeait
+// le statut sans aucun contrôle.
 export const updateBookingStatus = async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.user?.id;
-    const bookingId = req.params.bookingId as string;
-    const { statut } = req.body;
-
-    const booking = await prisma.reservation.findFirst({
-      where: { id: bookingId, prestataire: { userId } },
-    });
-
-    if (!booking) {
-      res.status(404).json({ message: "Réservation non trouvée ou non autorisée" });
-      return;
-    }
-
-    const updatedBooking = await prisma.reservation.update({
-      where: { id: bookingId },
-      data: { statut },
-      include: {
-        client: {
-          select: { id: true, nom: true, prenom: true, email: true, telephone: true },
-        },
-      },
-    });
-
-    res.json({ message: "Statut mis à jour avec succès", booking: updatedBooking });
-  } catch (error) {
-    console.error("Erreur update booking status:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
-  }
+  req.params.id = req.params.bookingId as string;
+  return updateStatutReservation(req, res);
 };
 
 // ============ AVIS ============
@@ -642,7 +648,7 @@ export const getPrestataireReviews = async (req: AuthRequest, res: Response) => 
     });
   } catch (error) {
     console.error("Erreur reviews:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -692,7 +698,7 @@ export const getPrestataireAnalytics = async (req: AuthRequest, res: Response) =
     res.json({ period, bookingsTrend, revenueTrend, clientRetention, peakHours });
   } catch (error) {
     console.error("Erreur analytics:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -780,8 +786,12 @@ export const getPrestatairesPublic = async (req: Request, res: Response) => {
       page = "1",
       limit = "12",
     } = req.query;
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
-    const take = parseInt(limit as string);
+    // Bornes : évite les requêtes géantes (?limit=100000) et les NaN
+    const pageNum = Math.max(parseInt(page as string) || 1, 1);
+    const take = Math.min(Math.max(parseInt(limit as string) || 12, 1), 50);
+    const skip = (pageNum - 1) * take;
+
+    await expirerPremiumsEchus();
 
     let ids: string[] | null = null;
 
@@ -790,7 +800,7 @@ export const getPrestatairesPublic = async (req: Request, res: Response) => {
       // (nom, description, quartier, commune, ville, catégorie ou tag).
       // Ex: "décoration cocody" => "décoration" matche la catégorie,
       // "cocody" matche la commune => intersection = décorateurs de Cocody
-      const searchStr = search as string;
+      const searchStr = String(search).slice(0, 100);
 
       // Quartiers en plusieurs mots ("zone 4", "deux plateaux") : on détecte
       // sur la phrase entière, on retire le motif et on garde la commune
@@ -806,7 +816,8 @@ export const getPrestatairesPublic = async (req: Request, res: Response) => {
       const words = resteRecherche
         .trim()
         .split(/\s+/)
-        .filter((w) => w.length >= 2);
+        .filter((w) => w.length >= 2)
+        .slice(0, 6); // 6 mots max : chaque mot coûte plusieurs requêtes
 
       for (const word of words) {
         const pattern = "%" + word + "%";
@@ -889,7 +900,7 @@ export const getPrestatairesPublic = async (req: Request, res: Response) => {
           user: { select: { id: true, nom: true, prenom: true, avatar: true } },
           _count: { select: { avis: true, reservations: true } },
         },
-      orderBy: [{ user: { estPremium: "desc" } }, { notemoyenne: "desc" }],
+        orderBy: [{ user: { estPremium: "desc" } }, { notemoyenne: "desc" }],
         skip,
         take,
       }),
@@ -901,13 +912,13 @@ export const getPrestatairesPublic = async (req: Request, res: Response) => {
       pagination: {
         total,
         pages: Math.ceil(total / take),
-        currentPage: parseInt(page as string),
+        currentPage: pageNum,
         limit: take,
       },
     });
   } catch (error) {
     console.error("Erreur get prestataires:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -929,6 +940,8 @@ export const getPrestatairesProximite = async (req: Request, res: Response) => {
     // Rayon en km, borné entre 0.5 et 100
     const rayonKm = Math.min(Math.max(parseFloat(rayon as string) || 10, 0.5), 100);
     const take = Math.min(parseInt(limit as string) || 50, 100);
+
+    await expirerPremiumsEchus();
 
     // Bounding box pour pré-filtrer via l'index [latitude, longitude]
     // 1° de latitude ≈ 111 km ; 1° de longitude ≈ 111 km * cos(lat)
@@ -991,7 +1004,7 @@ export const getPrestatairesProximite = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Erreur proximité:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -1027,6 +1040,6 @@ export const getPrestatairePublic = async (req: Request, res: Response) => {
     res.json({ ...prestataire, avis });
   } catch (error) {
     console.error("Erreur get prestataire:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
