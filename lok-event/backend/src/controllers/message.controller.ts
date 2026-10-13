@@ -1,8 +1,10 @@
-// backend/src/controllers/message.controller.ts
+// lok-event/backend/src/controllers/message.controller.ts
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { getIO } from "../lib/socket";
 import { envoyerPush } from "../lib/push";
+
+const MESSAGES_PAR_PAGE = 100;
 
 // Ouvre (ou retrouve) la conversation entre le client connecté et un prestataire
 export const getOrCreateConversation = async (req: Request, res: Response) => {
@@ -47,7 +49,7 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
     res.json(conversation);
   } catch (error) {
     console.error("Erreur ouverture conversation:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -90,7 +92,7 @@ export const getMesConversations = async (req: Request, res: Response) => {
     res.json(withUnread);
   } catch (error) {
     console.error("Erreur liste conversations:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -117,12 +119,29 @@ export const getMessages = async (req: Request, res: Response) => {
       return;
     }
 
-    const messages = await prisma.message.findMany({
-      where: { conversationId },
+    // Les 100 messages les PLUS RÉCENTS (avant : les 100 plus anciens, donc
+    // les nouveaux messages n'apparaissaient plus au-delà de 100).
+    // Option ?avant=<idMessage> : charge les 100 messages précédents
+    // (pour un bouton "Voir les messages plus anciens").
+    const avantId = typeof req.query.avant === "string" ? req.query.avant : null;
+    let avantDate: Date | undefined;
+    if (avantId) {
+      const repere = await prisma.message.findFirst({
+        where: { id: avantId, conversationId },
+        select: { createdAt: true },
+      });
+      avantDate = repere?.createdAt;
+    }
+
+    const recents = await prisma.message.findMany({
+      where: { conversationId, ...(avantDate ? { createdAt: { lt: avantDate } } : {}) },
       include: { sender: { select: { id: true, nom: true, prenom: true } } },
-      orderBy: { createdAt: "asc" },
-      take: 100,
+      orderBy: { createdAt: "desc" },
+      take: MESSAGES_PAR_PAGE,
     });
+    // Renvoyés du plus ancien au plus récent, comme avant : les écrans
+    // n'ont rien à changer
+    const messages = recents.reverse();
 
     // Ouvrir la conversation = lire les messages reçus
     await prisma.message.updateMany({
@@ -133,7 +152,7 @@ export const getMessages = async (req: Request, res: Response) => {
     res.json(messages);
   } catch (error) {
     console.error("Erreur messages:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -141,9 +160,9 @@ export const getMessages = async (req: Request, res: Response) => {
 export const sendMessage = async (req: Request, res: Response) => {
   try {
     const conversationId = req.params.id as string;
-    const { contenu } = req.body;
+    const { contenu } = req.body ?? {};
 
-    if (!contenu || !contenu.trim()) {
+    if (typeof contenu !== "string" || !contenu.trim()) {
       res.status(400).json({ message: "Le message ne peut pas être vide" });
       return;
     }
@@ -201,7 +220,7 @@ export const sendMessage = async (req: Request, res: Response) => {
     res.status(201).json(message);
   } catch (error) {
     console.error("Erreur envoi message:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -228,6 +247,6 @@ export const getUnreadMessagesCount = async (req: Request, res: Response) => {
     res.json({ unreadCount });
   } catch (error) {
     console.error("Erreur comptage messages non lus:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
