@@ -1,4 +1,4 @@
-// backend/src/controllers/motDePasse.controller.ts
+// lok-event/backend/src/controllers/motDePasse.controller.ts
 // Mot de passe oublié en 2 étapes :
 //  1. POST /auth/mot-de-passe-oublie        { email }
 //     → envoie un code à 6 chiffres par email (valable 15 min)
@@ -37,6 +37,16 @@ function normaliserEmail(email: unknown): string | null {
   return propre.length > 3 && propre.length <= 200 && propre.includes("@") ? propre : null;
 }
 
+/** Échappe le HTML : un prénom comme "<a href=...>" ne doit pas devenir un lien dans l'email */
+function echapperHtml(texte: string): string {
+  return texte
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function contenuEmail(prenom: string, code: string) {
   const text = `Bonjour ${prenom},
 
@@ -54,7 +64,7 @@ L'équipe LOKEVENT`;
       <tr><td style="padding:32px">
         <p style="margin:0 0 4px;font-size:22px;font-weight:900;letter-spacing:2px">LOK<span style="color:#00D5BE">EVENT</span></p>
         <p style="margin:0 0 24px;color:#9CA3AF;font-size:13px">L'excellence événementielle</p>
-        <p style="margin:0 0 16px;font-size:15px">Bonjour ${prenom},</p>
+        <p style="margin:0 0 16px;font-size:15px">Bonjour ${echapperHtml(prenom)},</p>
         <p style="margin:0 0 16px;font-size:15px;color:#D1D5DB">Voici votre code pour réinitialiser votre mot de passe :</p>
         <p style="margin:0 0 16px;font-size:36px;font-weight:900;letter-spacing:10px;color:#00D5BE;text-align:center;background:#050505;border-radius:12px;padding:16px">${code}</p>
         <p style="margin:0 0 24px;font-size:13px;color:#9CA3AF">Ce code est valable ${DUREE_CODE_MINUTES} minutes.</p>
@@ -76,8 +86,9 @@ export const demanderCode = async (req: Request, res: Response) => {
       return;
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
+    // Insensible à la casse : couvre les anciens comptes enregistrés avec des majuscules
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
       select: { id: true, prenom: true, actif: true },
     });
 
@@ -137,7 +148,10 @@ export const reinitialiserMotDePasse = async (req: Request, res: Response) => {
 
     const erreurCode = { message: "Code incorrect ou expiré. Demandez un nouveau code." };
 
-    const user = await prisma.user.findUnique({ where: { email }, select: { id: true, actif: true } });
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { id: true, actif: true },
+    });
     if (!user || !user.actif) {
       res.status(400).json(erreurCode);
       return;
