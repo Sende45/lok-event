@@ -1,7 +1,8 @@
-// backend/src/controllers/reservation.controller.ts
+// lok-event/backend/src/controllers/reservation.controller.ts
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { sendNotification } from "./notification.controller";
+import { blocageEntre, MESSAGE_BLOCAGE } from "../lib/blocage";
 
 interface AuthRequest extends Request {
   user?: {
@@ -131,6 +132,12 @@ export const creerReservation = async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Blocage dans un sens ou dans l'autre : pas de réservation possible
+    if (await blocageEntre(req.user!.id, prestataire.userId)) {
+      res.status(403).json({ message: MESSAGE_BLOCAGE });
+      return;
+    }
+
     // Vérification de disponibilité : date bloquée par le prestataire
     // ou déjà prise par une réservation confirmée
     if (await dateEstPrise(prestataireId, date)) {
@@ -171,7 +178,7 @@ export const creerReservation = async (req: AuthRequest, res: Response) => {
     res.status(201).json(reservation);
   } catch (error) {
     console.error("Erreur création réservation:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -191,7 +198,7 @@ export const getMesReservations = async (req: AuthRequest, res: Response) => {
     res.json(reservations);
   } catch (error) {
     console.error("Erreur mes réservations:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -242,7 +249,7 @@ export const annulerReservation = async (req: AuthRequest, res: Response) => {
     res.json({ message: "Réservation annulée", reservation: updated });
   } catch (error) {
     console.error("Erreur annulation réservation:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
@@ -346,6 +353,6 @@ export const updateStatutReservation = async (req: AuthRequest, res: Response) =
     res.json(updated);
   } catch (error) {
     console.error("Erreur update statut réservation:", error);
-    res.status(500).json({ message: "Erreur serveur", error });
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };

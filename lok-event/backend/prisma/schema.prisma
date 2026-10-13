@@ -38,6 +38,28 @@ enum EmplacementPub {
   ACCUEIL_CARROUSEL // grand carrousel en haut de l'accueil
   ACCUEIL_ENCART    // encart au milieu de l'accueil
 }
+// lok-event/backend/prisma/schema.prisma — avant "enum MoyenPaiement"
+enum CibleSignalement {
+  UTILISATEUR // un compte (client ou prestataire)
+  PRESTATAIRE // une fiche prestataire
+  AVIS        // un avis publié
+  MESSAGE     // un message reçu dans la messagerie
+}
+
+enum MotifSignalement {
+  FAUX_PROFIL
+  ARNAQUE
+  CONTENU_INAPPROPRIE
+  HARCELEMENT
+  SPAM
+  AUTRE
+}
+
+enum StatutSignalement {
+  EN_ATTENTE
+  TRAITE  // l'admin a agi (avertissement, contenu retiré, compte désactivé)
+  REJETE  // signalement non fondé
+}
 
 enum MoyenPaiement {
   WAVE
@@ -70,7 +92,11 @@ model User {
   conversationsClient Conversation[] @relation("ConversationsClient")
   messagesEnvoyes     Message[]      @relation("MessagesEnvoyes")
   codesReinitialisation CodeReinitialisation[]
-    pushTokens   PushToken[]
+  pushTokens   PushToken[]
+  signalementsFaits Signalement[] @relation("SignalementsFaits")
+  signalementsRecus Signalement[] @relation("SignalementsRecus")
+  blocagesFaits     Blocage[]     @relation("BlocagesFaits")
+  blocagesRecus     Blocage[]     @relation("BlocagesRecus")
 
   @@map("users")
 }
@@ -336,4 +362,41 @@ model PushToken {
 
   @@index([userId])
   @@map("push_tokens")
+}
+
+// Signalement d'un contenu ou d'un utilisateur, traité par un admin
+model Signalement {
+  id                   String            @id @default(cuid())
+  auteurId             String
+  auteur               User              @relation("SignalementsFaits", fields: [auteurId], references: [id], onDelete: Cascade)
+  cibleType            CibleSignalement
+  cibleId              String // id de l'utilisateur, de la fiche, de l'avis ou du message
+  utilisateurSignaleId String? // propriétaire du contenu signalé
+  utilisateurSignale   User?             @relation("SignalementsRecus", fields: [utilisateurSignaleId], references: [id], onDelete: SetNull)
+  motif                MotifSignalement
+  details              String?
+  apercu               String? // copie du contenu signalé (s'il est supprimé ensuite)
+  statut               StatutSignalement @default(EN_ATTENTE)
+  noteAdmin            String?
+  traiteLe             DateTime?
+  createdAt            DateTime          @default(now())
+
+  @@unique([auteurId, cibleType, cibleId]) // un seul signalement par personne et par contenu
+  @@index([statut, createdAt])
+  @@index([utilisateurSignaleId])
+  @@map("signalements")
+}
+
+// Un utilisateur en bloque un autre : plus de messages ni de réservations entre eux
+model Blocage {
+  id         String   @id @default(cuid())
+  bloqueurId String
+  bloqueur   User     @relation("BlocagesFaits", fields: [bloqueurId], references: [id], onDelete: Cascade)
+  bloqueId   String
+  bloque     User     @relation("BlocagesRecus", fields: [bloqueId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([bloqueurId, bloqueId])
+  @@index([bloqueId])
+  @@map("blocages")
 }

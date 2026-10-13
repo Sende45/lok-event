@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { getIO } from "../lib/socket";
 import { envoyerPush } from "../lib/push";
+import { blocageEntre, idsBloques, MESSAGE_BLOCAGE } from "../lib/blocage";
 
 const MESSAGES_PAR_PAGE = 100;
 
@@ -28,6 +29,12 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
 
     if (prestataire.userId === req.user!.id) {
       res.status(400).json({ message: "Vous ne pouvez pas vous envoyer de message à vous-même" });
+      return;
+    }
+
+    // Blocage dans un sens ou dans l'autre : pas de nouvelle conversation
+    if (await blocageEntre(req.user!.id, prestataire.userId)) {
+      res.status(403).json({ message: MESSAGE_BLOCAGE });
       return;
     }
 
@@ -79,14 +86,22 @@ export const getMesConversations = async (req: Request, res: Response) => {
       orderBy: { updatedAt: "desc" },
     });
 
+    // Utilisateurs bloqués (dans un sens ou dans l'autre) : la conversation
+    // reste visible mais marquée "bloque", pour que l'app désactive l'envoi
+    const bloques = await idsBloques(userId);
+
     // Compte des messages non lus (reçus, pas envoyés) par conversation
     const withUnread = await Promise.all(
-      conversations.map(async (c) => ({
-        ...c,
-        nonLus: await prisma.message.count({
-          where: { conversationId: c.id, lu: false, senderId: { not: userId } },
-        }),
-      }))
+      conversations.map(async (c) => {
+        const autreUserId = c.clientId === userId ? c.prestataire.userId : c.clientId;
+        return {
+          ...c,
+          bloque: bloques.has(autreUserId),
+          nonLus: await prisma.message.count({
+            where: { conversationId: c.id, lu: false, senderId: { not: userId } },
+          }),
+        };
+      })
     );
 
     res.json(withUnread);
@@ -177,6 +192,17 @@ export const sendMessage = async (req: Request, res: Response) => {
       return;
     }
 
+    const destinataireUserId =
+      conversation.clientId === req.user!.id
+        ? conversation.prestataire.userId
+        : conversation.clientId;
+
+    // Blocage dans un sens ou dans l'autre : envoi refusé
+    if (await blocageEntre(req.user!.id, destinataireUserId)) {
+      res.status(403).json({ message: MESSAGE_BLOCAGE });
+      return;
+    }
+
     const message = await prisma.message.create({
       data: {
         conversationId,
@@ -193,11 +219,6 @@ export const sendMessage = async (req: Request, res: Response) => {
     });
 
     // Temps réel : on émet vers la room personnelle du destinataire
-    const destinataireUserId =
-      conversation.clientId === req.user!.id
-        ? conversation.prestataire.userId
-        : conversation.clientId;
-
     try {
       getIO().to(`user-${destinataireUserId}`).emit("newMessage", message);
     } catch (err) {

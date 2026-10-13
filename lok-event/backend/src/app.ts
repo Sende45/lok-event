@@ -20,6 +20,7 @@ import parametreRoutes from "./routes/parametre.routes";
 import publiciteRoutes from "./routes/publicite.routes";
 import { globalLimiter } from "./middlewares/rateLimit.middleware";
 import { protectionCsrf } from "./lib/cookieSession";
+import moderationRoutes from "./routes/moderation.routes";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -116,5 +117,6 @@ app.use("/api/services", serviceRoutes);
 app.use("/api/premium", premiumRoutes);
 app.use("/api/parametres", parametreRoutes);
 app.use("/api/publicites", publiciteRoutes);
+app.use("/api/moderation", moderationRoutes);
 
 export default app;
