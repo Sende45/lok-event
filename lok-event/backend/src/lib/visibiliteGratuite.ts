@@ -1,4 +1,4 @@
-// backend/src/lib/visibiliteGratuite.ts
+// lok-event/backend/src/lib/visibiliteGratuite.ts
 //
 // Phase de lancement : les 50 premiers prestataires inscrits (par date
 // d'inscription) sont visibles en entier gratuitement, comme s'ils étaient
@@ -20,7 +20,9 @@ export async function userIdsVisiblesGratuitement(): Promise<Set<string>> {
   if (QUOTA_GRATUIT === 0) return new Set();
   if (cache && cache.expire > Date.now()) return cache.userIds;
 
+  // Seuls les comptes actifs prennent une des places gratuites
   const premiers = await prisma.prestataire.findMany({
+    where: { actif: true, user: { actif: true } },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: QUOTA_GRATUIT,
     select: { userId: true },
