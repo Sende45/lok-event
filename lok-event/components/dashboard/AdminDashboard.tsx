@@ -3,7 +3,7 @@
 import {
   BarChart3, Users, Briefcase, Calendar, LogOut, Menu, X, DollarSign,
   Check, AlertCircle, Tag as TagIcon, FolderTree, Plus, Edit2, Trash2, Power,
-  RefreshCw, Crown, Megaphone,
+  RefreshCw, Crown, Megaphone, Flag, // ← NOUVEAU : Flag
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
@@ -16,6 +16,7 @@ import {
 import { api } from "@/lib/api";
 import { deconnecter } from "@/lib/session";
 import AdminPublicites from "@/components/dashboard/AdminPublicites";
+import AdminSignalements from "@/components/dashboard/AdminSignalements"; // ← NOUVEAU
 
 interface EvolutionMois {
   mois: string;
@@ -138,6 +139,7 @@ const tabs = [
   { id: "categories", label: "Catégories", icon: FolderTree },
   { id: "tags", label: "Tags", icon: TagIcon },
   { id: "publicites", label: "Publicités", icon: Megaphone },
+  { id: "signalements", label: "Signalements", icon: Flag }, // ← NOUVEAU
 ];
 
 /** Format compact des montants FCFA pour les axes du graphique (1,5M / 250k) */
@@ -268,9 +270,9 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [activeTab, loadLiveData]);
 
-    const handleLogout = () => {
+  const handleLogout = () => {
     deconnecter("/login"); // efface aussi le cookie httpOnly côté API
-    };
+  };
 
   const handleVerify = async (id: string) => {
     await api.patch(`/admin/providers/${id}/verify`, {});
@@ -1074,7 +1076,8 @@ export default function AdminDashboard() {
             ))}
           </motion.div>
         )}
-      {activeTab === "publicites" && <AdminPublicites />}
+        {activeTab === "publicites" && <AdminPublicites />}
+        {activeTab === "signalements" && <AdminSignalements />} {/* ← NOUVEAU */}
       </main>
     </div>
   );
