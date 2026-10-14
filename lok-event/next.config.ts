@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "res.cloudinary.com",
+      },
+      {
+        // anciennes photos, le temps de la migration
+        protocol: "https",
         hostname: "i.ibb.co",
       },
       {

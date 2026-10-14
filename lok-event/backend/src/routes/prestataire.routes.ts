@@ -18,7 +18,7 @@ import {
 } from "../controllers/prestataire.controller";
 import { protect } from "../middlewares/auth.middleware";
 import { requireProvider } from "../middlewares/provider.middleware";
-import { uploadMiddleware, uploadPhotoToImgbb } from "../controllers/prestataire.controller";
+import { uploadMiddleware, uploadImage } from "../controllers/upload.controller";
 import { masquerNonPremium } from "../middlewares/visibilite.middleware";
 
 const router = Router();
@@ -35,7 +35,7 @@ router.get("/bookings", protect, requireProvider, getPrestataireBookings);
 router.put("/bookings/:bookingId/status", protect, requireProvider, updateBookingStatus);
 router.get("/reviews", protect, requireProvider, getPrestataireReviews);
 router.get("/analytics", protect, requireProvider, getPrestataireAnalytics);
-router.post("/photos/upload", protect, requireProvider, uploadMiddleware.single("image"), uploadPhotoToImgbb);
+router.post("/photos/upload", protect, requireProvider, uploadMiddleware.single("image"), uploadImage("prestataires"));
 
 // Routes publiques (doivent être déclarées après les routes protégées ci-dessus)
 // ⚠️ /proximite DOIT être avant /:id, sinon "proximite" serait interprété comme un id

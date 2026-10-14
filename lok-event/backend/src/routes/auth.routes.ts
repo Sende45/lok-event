@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import { register, login, logout, getMe } from "../controllers/auth.controller";
 import { demanderCode, reinitialiserMotDePasse } from "../controllers/motDePasse.controller";
 import { modifierProfil, changerMotDePasse, supprimerCompte } from "../controllers/compte.controller";
-import { uploadMiddleware, uploadPhotoToImgbb } from "../controllers/prestataire.controller";
+import { uploadMiddleware, uploadImage } from "../controllers/upload.controller";
 import { protect } from "../middlewares/auth.middleware";
 import { loginLimiter, registerLimiter } from "../middlewares/rateLimit.middleware";
 
@@ -35,7 +35,7 @@ router.post("/reinitialiser-mot-de-passe", reinitialisationLimiter, reinitialise
 
 // Gestion de son propre compte (tous les rôles)
 router.put("/profil", protect, modifierProfil);
-router.post("/avatar", protect, uploadMiddleware.single("image"), uploadPhotoToImgbb);
+router.post("/avatar", protect, uploadMiddleware.single("image"), uploadImage("avatars"));
 router.put("/mot-de-passe", protect, loginLimiter, changerMotDePasse);
 router.delete("/compte", protect, loginLimiter, supprimerCompte);
 export default router;

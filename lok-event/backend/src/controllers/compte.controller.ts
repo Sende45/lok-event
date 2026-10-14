@@ -8,6 +8,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
 import { getIO } from "../lib/socket";
 import { effacerCookieSession } from "../lib/cookieSession";
+import { supprimerImages } from "../lib/cloudinary";
 
 const LONGUEUR_MIN_MDP = 8;
 
@@ -52,6 +53,12 @@ export const modifierProfil = async (req: Request, res: Response) => {
       return;
     }
 
+    // Ancienne photo de profil, effacée de Cloudinary si elle est remplacée
+    const avant =
+      avatar !== undefined
+        ? await prisma.user.findUnique({ where: { id: req.user!.id }, select: { avatar: true } })
+        : null;
+
     const user = await prisma.user.update({
       where: { id: req.user!.id },
       data: {
@@ -62,6 +69,8 @@ export const modifierProfil = async (req: Request, res: Response) => {
       },
       select: SELECT_USER,
     });
+
+    if (avant?.avatar && avant.avatar !== user.avatar) supprimerImages([avant.avatar]);
 
     res.json(user);
   } catch (error) {
@@ -119,7 +128,7 @@ export const supprimerCompte = async (req: Request, res: Response) => {
     const userId = req.user!.id;
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { motDePasse: true, role: true },
+      select: { motDePasse: true, role: true, avatar: true, prestataire: { select: { photos: true } } },
     });
     if (!user || !(await bcrypt.compare(motDePasse, user.motDePasse))) {
       res.status(400).json({ message: "Mot de passe incorrect" });
@@ -146,6 +155,10 @@ export const supprimerCompte = async (req: Request, res: Response) => {
     // avis, favoris, conversations, messages, notifications et abonnements
     // sont supprimés avec le compte.
     await prisma.user.delete({ where: { id: userId } });
+
+    // Photos du compte effacées de Cloudinary (exigence Google Play : les
+    // données de l'utilisateur sont supprimées, images comprises)
+    supprimerImages([user.avatar, ...(user.prestataire?.photos ?? [])]);
 
     // Recalcul des notes moyennes des prestataires concernés
     for (const prestataireId of prestatairesARecalculer) {
