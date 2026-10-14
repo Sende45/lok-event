@@ -1,6 +1,7 @@
 "use client";
 
-import { SlidersHorizontal, Sparkles, X, ChevronDown, MapPin } from "lucide-react";
+import { SlidersHorizontal, Sparkles, X, ChevronDown, MapPin, LayoutGrid } from "lucide-react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
@@ -40,6 +41,17 @@ const groupLabels: Record<string, string> = {
   EVENEMENTIEL: "Événementiel",
 };
 
+// Nombre de catégories affichées sur l'accueil ; les autres sont sur /categories
+const NB_CATEGORIES_ACCUEIL = 6;
+
+// À nombre de prestataires égal, ces catégories passent en premier
+const PRIORITE_CATEGORIES = ["traiteur", "decoration", "salles", "dj-musique", "photographie", "patisserie"];
+
+function rangPriorite(slug: string): number {
+  const i = PRIORITE_CATEGORIES.indexOf(slug);
+  return i === -1 ? PRIORITE_CATEGORIES.length : i;
+}
+
 const villes = ["Abidjan", "Bouaké", "Daloa", "Yamoussoukro", "San-Pédro", "Korhogo"];
 
 const communesAbidjan = [
@@ -76,6 +88,18 @@ export default function Filters({ onFilterChange }: FiltersProps) {
         ]);
         setCategories(categoriesData);
         setTagsGrouped(tagsData);
+
+        // Arrivée depuis la page « Toutes les catégories » : /?categorie=traiteur
+        const slugUrl = new URLSearchParams(window.location.search).get("categorie");
+        const depuisUrl = slugUrl ? categoriesData.find((c) => c.slug === slugUrl) : undefined;
+        if (depuisUrl) {
+          setActiveFilter(depuisUrl.nom);
+          const initiale: FilterSelection = { categorieSlug: depuisUrl.slug };
+          setSelection(initiale);
+          onFilterChange?.(initiale);
+          // On nettoie l'adresse : « Tout » ou un rechargement repartent de zéro
+          window.history.replaceState(null, "", window.location.pathname);
+        }
       } catch (err) {
         console.error("Erreur chargement filtres:", err);
       } finally {
@@ -83,7 +107,22 @@ export default function Filters({ onFilterChange }: FiltersProps) {
       }
     }
     loadFilters();
+    // Chargement unique au montage (onFilterChange vient du parent)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Les 6 catégories de l'accueil : les plus fournies en prestataires d'abord.
+  // La catégorie choisie depuis « Tout voir » reste visible même hors du top 6.
+  const triees = [...categories].sort(
+    (a, b) =>
+      b._count.prestataires - a._count.prestataires ||
+      rangPriorite(a.slug) - rangPriorite(b.slug) ||
+      a.nom.localeCompare(b.nom, "fr")
+  );
+  const categoriesAccueil = triees.slice(0, NB_CATEGORIES_ACCUEIL);
+  const active = categories.find((c) => c.nom === activeFilter);
+  if (active && !categoriesAccueil.some((c) => c.id === active.id)) categoriesAccueil.push(active);
+  const nbCachees = categories.length - categoriesAccueil.length;
 
   const totalPrestataires = categories.reduce(
     (sum, cat) => sum + cat._count.prestataires,
@@ -193,7 +232,7 @@ export default function Filters({ onFilterChange }: FiltersProps) {
               </span>
             </motion.button>
 
-            {categories.map((cat, index) => (
+            {categoriesAccueil.map((cat, index) => (
               <motion.button
                 key={cat.id}
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -239,6 +278,17 @@ export default function Filters({ onFilterChange }: FiltersProps) {
                 </span>
               </motion.button>
             ))}
+
+            {nbCachees > 0 && (
+              <Link
+                href="/categories"
+                className="flex-shrink-0 snap-start flex items-center gap-2 px-4 md:px-6 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-semibold border border-teal-400/40 text-teal-400 bg-teal-400/5 hover:bg-teal-400/15 hover:border-teal-400 transition-all whitespace-nowrap"
+              >
+                <LayoutGrid className="w-4 h-4" />
+                Tout voir
+                <span className="text-[10px] font-bold bg-teal-400/20 rounded-full px-1.5 py-0.5">+{nbCachees}</span>
+              </Link>
+            )}
           </div>
 
           {/* Ligne du bas sur mobile : localisation active, filtres avancés, compteur */}
@@ -272,6 +322,17 @@ export default function Filters({ onFilterChange }: FiltersProps) {
                 <span className="text-xs font-medium">Plus de filtres</span>
                 <ChevronDown className="w-3 h-3 hidden md:block" />
               </motion.button>
+
+              {/* Sur téléphone, « Tout voir » reste visible sans faire défiler les puces */}
+              {nbCachees > 0 && (
+                <Link
+                  href="/categories"
+                  className="lg:hidden flex items-center gap-1.5 px-3 py-2 rounded-full border border-teal-400/40 text-teal-400 text-xs font-semibold bg-teal-400/5 active:bg-teal-400/15"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  Toutes les catégories
+                </Link>
+              )}
             </div>
 
             <motion.span
@@ -408,7 +469,7 @@ export default function Filters({ onFilterChange }: FiltersProps) {
                       className="overflow-hidden"
                     >
                       <label className="text-xs text-gray-400 uppercase tracking-wider block mb-3">
-                        Commune d'Abidjan
+                        Commune d&apos;Abidjan
                       </label>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {communesAbidjan.map((commune) => (
