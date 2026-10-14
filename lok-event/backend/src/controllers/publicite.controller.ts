@@ -4,6 +4,7 @@
 // - Admin  : création, modification, suppression, statistiques
 import { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
+import { supprimerImages } from "../lib/cloudinary";
 
 const EMPLACEMENTS = ["ACCUEIL_CARROUSEL", "ACCUEIL_ENCART"] as const;
 type Emplacement = (typeof EMPLACEMENTS)[number];
@@ -175,7 +176,7 @@ export const creerPublicite = async (req: Request, res: Response) => {
 export const modifierPublicite = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const existe = await prisma.publicite.findUnique({ where: { id }, select: { id: true } });
+    const existe = await prisma.publicite.findUnique({ where: { id }, select: { id: true, imageUrl: true } });
     if (!existe) {
       res.status(404).json({ message: "Publicité introuvable" });
       return;
@@ -186,6 +187,8 @@ export const modifierPublicite = async (req: Request, res: Response) => {
       return;
     }
     const pub = await prisma.publicite.update({ where: { id }, data: resultat.data });
+    // Bannière remplacée : l'ancienne image est effacée de Cloudinary
+    if (pub.imageUrl !== existe.imageUrl) supprimerImages([existe.imageUrl]);
     res.json(pub);
   } catch (error) {
     console.error("Erreur modification publicité:", error);
@@ -196,11 +199,16 @@ export const modifierPublicite = async (req: Request, res: Response) => {
 /** DELETE /publicites/:id */
 export const supprimerPublicite = async (req: Request, res: Response) => {
   try {
-    const resultat = await prisma.publicite.deleteMany({ where: { id: req.params.id as string } });
-    if (resultat.count === 0) {
+    const pub = await prisma.publicite.findUnique({
+      where: { id: req.params.id as string },
+      select: { id: true, imageUrl: true },
+    });
+    if (!pub) {
       res.status(404).json({ message: "Publicité introuvable" });
       return;
     }
+    await prisma.publicite.delete({ where: { id: pub.id } });
+    supprimerImages([pub.imageUrl]); // la bannière est aussi effacée de Cloudinary
     res.json({ message: "Publicité supprimée" });
   } catch (error) {
     console.error("Erreur suppression publicité:", error);

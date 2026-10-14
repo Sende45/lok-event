@@ -9,15 +9,15 @@ import {
   modifierPublicite,
   supprimerPublicite,
 } from "../controllers/publicite.controller";
-import { uploadMiddleware, uploadPhotoToImgbb } from "../controllers/prestataire.controller";
+import { uploadMiddleware, uploadImage } from "../controllers/upload.controller";
 import { protect, adminOnly } from "../middlewares/auth.middleware";
 
 const router = Router();
 
 // ── Admin (déclarées AVANT /:id) ─────────────────────────────────────────────
 router.get("/admin/toutes", protect, adminOnly, listerPublicitesAdmin);
-// Upload de la bannière vers Imgbb (la clé reste cachée côté serveur)
-router.post("/upload", protect, adminOnly, uploadMiddleware.single("image"), uploadPhotoToImgbb);
+// Upload de la bannière vers Cloudinary (la clé reste cachée côté serveur)
+router.post("/upload", protect, adminOnly, uploadMiddleware.single("image"), uploadImage("publicites"));
 router.post("/", protect, adminOnly, creerPublicite);
 router.put("/:id", protect, adminOnly, modifierPublicite);
 router.delete("/:id", protect, adminOnly, supprimerPublicite);
