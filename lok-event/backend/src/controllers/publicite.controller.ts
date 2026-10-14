@@ -78,7 +78,12 @@ function validerCorps(body: any, creation: boolean): { erreur: string } | { data
 // PUBLIC
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** GET /publicites?emplacement=ACCUEIL_CARROUSEL — pubs en cours de diffusion */
+/**
+ * GET /publicites?emplacement=ACCUEIL_CARROUSEL — pubs en cours de diffusion
+ * Le titre et le sous-titre ne sont PAS envoyés : le texte d'une pub est dans
+ * son image, et l'app les écrivait par-dessus (texte mélangé au visuel).
+ * Ils restent visibles dans l'admin comme simples repères internes.
+ */
 export const getPublicitesActives = async (req: Request, res: Response) => {
   try {
     const emplacement = req.query.emplacement as string | undefined;
@@ -97,8 +102,6 @@ export const getPublicitesActives = async (req: Request, res: Response) => {
       select: {
         id: true,
         marque: true,
-        titre: true,
-        sousTitre: true,
         imageUrl: true,
         lien: true,
         emplacement: true,
