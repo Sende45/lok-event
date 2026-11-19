@@ -3,6 +3,8 @@ export interface Provider {
   name: string;
   image?: string;
   rating: number;
+  /** Nombre d'avis (0 = « Nouveau ») */
+  totalAvis?: number;
   location: string;
   price: number;
   whatsapp?: string;
