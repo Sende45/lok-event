@@ -159,11 +159,9 @@ export default function ProviderDashboard() {
     loadDashboard();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("lokevent_token");
-    localStorage.removeItem("lokevent_user");
-    router.push("/login");
-  };
+      const handleLogout = () => {
+      deconnecter("/login"); // efface aussi le cookie httpOnly côté API
+    };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
